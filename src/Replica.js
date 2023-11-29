@@ -1,4 +1,4 @@
-const { Socket, createSocket } = require('dgram');
+const { createSocket } = require('dgram');
 const { Follower } = require('./states/Follower');
 
 /**
@@ -22,7 +22,7 @@ class Replica {
     /** @type {Socket} - Our replica's socket we'll use to communicate across the transport layer. */
     this.socket = createSocket('udp4');
     this.socket.bind(0, '0.0.0.0', () => {
-      this.socket.send()
+      this.socket.send();
 
       // create our message as a json object
       // convert it to string
