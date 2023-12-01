@@ -36,17 +36,6 @@ class CandidateState extends BaseRaftState {
     this.timeoutId = setTimeout(callback, timeout);
   }
 
-  // /**
-  //  * Clear the timeout and additional logic depending on state.
-  //  *
-  //  * [FOLLOWER] Clear the timeout when there is a heartbeat from the leader or a RequestVote RPC.
-  //  * @method clearTimeout
-  //  */
-  // clearTimeout() {
-  //   clearTimeout(this.timeoutId);
-  //   this.timeoutId = null;
-  // }
-
   /**
    * The event handler, dependent on state, for when the replica has a 'timeout' event.
    *

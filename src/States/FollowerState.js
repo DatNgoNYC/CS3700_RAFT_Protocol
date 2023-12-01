@@ -4,9 +4,12 @@ const { CandidateState } = require('./CandidateState');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
 const { Replica } = require('../Replica');
+const { getRandomDuration } = require('../Utilities');
 
 /**
  * Follower state class.
+ *
+ * [Raft] A replica in the Follower state will take the role of listening and logging under the coordination/lead of the Leader replica.
  * @class
  * @extends BaseRaftState
  */
@@ -18,31 +21,25 @@ class FollowerState extends BaseRaftState {
   constructor(replica) {
     super(replica);
   }
-
-  // /**
-  //  * Run the replica with logic defined by each state.
-  //  *
-  //  * [FOLLOWER] Set up the electionTimeout mechanism. Add the message handler for all incoming messages (will either be a 'heartbeat'/appendEntries RPC or RequestVote RPC).
-  //  * @method run */
-  // run() {
-  //   this.setupTimeout(this.timeoutHandler, getRandomDuration());
-  //   this.replica.socket.on('message', this.messageHandler);
-  // }
-
-  // /**
-  //  * Set up the timeout for the state.
-  //  * @method setupTimeout
-  //  * @param {Function} callback - Callback function to be executed on timeout.
-  //  * @param {number} timeout - Timeout duration in milliseconds.
-  //  */
-  // setupTimeout(callback, timeout) {
-  //   super.setupTimeout(callback, timeout);
-  // }
+  /**
+   * Run the replica with logic defined by each state.
+   *
+   * 1. Set up the state's 'timeout' mechanism.
+   * 2. Set up the state's message handler logic.
+   * 
+   * [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message.
+   * @method run 
+   * @abstract */
+  run() {
+    this.setupTimeout(this.timeoutHandler, getRandomDuration());
+    this.replica.socket.on('message', this.messageHandler);
+  }
 
   /**
    * The event handler, dependent on state, for when the replica has a 'timeout' event.
    *
-   * [FOLLOWER] In the Follower state you should transition the replica to the candidate state. In this context, the 'timeout' of the follower is the election timeout. Remove the current messageHandler for this state before you transition to the new one.
+   * [Raft] In the Follower state you should transition the replica to the candidate state. In this context, the 'timeout' of the follower is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
+   *
    * @method timeoutHandler
    */
   timeoutHandler() {
@@ -53,16 +50,17 @@ class FollowerState extends BaseRaftState {
   /**
    * Each state has specific message handling logic.
    *
-   * [FOLLOWER] Upon receiving a heartbeat/AppendEntry RPC or VoteRequest RPC it should execute the appropiate steps and reset its election timeout with a random duration from 150ms - 300ms. If there is a VoteRequest RPC, execute the appropiate steps.
+   * [Raft] The replica can either get a message from the client or another replica. Reset the timer on each message. While in the Follower state...
+   * 
+   * 1. If the message is from a client, send back a "redirect" message. 
+   * 2. If the message if from another replica... follow protocol.
+   * 
    * @method messageHandler
    * @param {Message} */
   messageHandler() {
-    // respond however we'd like...
-    // if appendEntry
-    //  then do what needs to be done
-    // else if VoteRequest
-
     clearTimeout(this.timeoutId);
+
+
 
     const randomDuration = Math.floor(Math.random() * 150 + 150);
     this.setupTimeout(this.timeoutHandler, randomDuration);

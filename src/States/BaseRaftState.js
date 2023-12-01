@@ -1,6 +1,5 @@
 // eslint-disable-next-line no-unused-vars
 const { Replica } = require('../Replica');
-const { getRandomDuration } = require('../Utilities');
 
 /**
  * Base class for Raft states (Pseudo-abstract).
@@ -25,39 +24,28 @@ class BaseRaftState {
 
   /**
    * Run the replica with logic defined by each state.
-   * 
+   *
    * 1. Set up the state's 'timeout' mechanism.
    * 2. Set up the state's message handler logic.
-   * @method run */
+   * @method run 
+   * @abstract */
   run() {
-    this.setupTimeout(this.timeoutHandler, getRandomDuration());
-    this.replica.socket.on('message', this.messageHandler);
+    throw new Error('Abstract method run must be overridden with state specific logic.');
   }
 
   /**
    * Each state in Raft has a 'timeout' mechanism - something it should do by default after some time... Set it up here with the given timeout handler and the give timeout duration
    * @method setupTimeout
    * @param {Function} timeoutHandler - Callback function to be executed on timeout.
-   * @param {number} timeoutDuration - Timeout duration in milliseconds.
-   */
+   * @param {number} timeoutDuration - Timeout duration in milliseconds. */
   setupTimeout(timeoutHandler, timeoutDuration) {
     this.timeoutId = setTimeout(timeoutHandler, timeoutDuration);
   }
 
-  // /**
-  //  * Clear the timeout and additional logic depending on state.
-  //  * @method clearTimeout
-  //  * @abstract
-  //  */
-  // clearTimeout() {
-  //   throw new Error('Abstract method run must be overridden with state specific logic.');
-  // }
-
   /**
    * The event handler, dependent on state, for when the replica has a 'timeout' event.
    * @method timeoutHandler
-   * @abstract
-   */
+   * @abstract */
   timeoutHandler() {
     throw new Error('Abstract method run must be overridden with state specific logic.');
   }
@@ -66,7 +54,7 @@ class BaseRaftState {
    * Each state has specific message handling logic.
    * @method messageHandler
    * @param {Message}
-   * @abstract */
+   * @abstract   */
   messageHandler() {
     throw new Error('Abstract method run must be overridden with state specific logic.');
   }
