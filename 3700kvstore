@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
-const { Replica } = require("./src/Replica");
+const { Replica } = require('./src/Replica');
 
 // Extract command line arguments
 /* [SELF STUDY] here we are using something something destructuring. Array desturcturing i think... */
-const [, , id, port, ...others] = process.argv;
+const [, , port, id, ...others] = process.argv;
 
 // Validate that id and port are provided
 if (!id || !port) {
-  console.error('Usage: ./3700kvstore <id> <port> [<otherId1> <otherId2> ...]');
+  console.error('Usage: ./3700kvstore <port> <id> [<otherId1> <otherId2> ...]');
   process.exit(1);
 }
 

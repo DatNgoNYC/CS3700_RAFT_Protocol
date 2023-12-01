@@ -1,16 +1,12 @@
-const { clearTimeout } = require('timers');
 const BaseRaftState = require('./BaseRaftState');
 const { CandidateState } = require('./CandidateState');
-// Disabled rule for JSDoc typing purposes.
-// eslint-disable-next-line no-unused-vars
-const { Replica } = require('../Replica');
 
 /**
- * Follower state class.
+ * Leader state class.
  * @class
  * @extends BaseRaftState
  */
-class FollowerState extends BaseRaftState {
+class LeaderState extends BaseRaftState {
   /**
    * Creates an instance of FollowerState.
    * @param {Replica} replica - The Replica instance.
@@ -19,24 +15,37 @@ class FollowerState extends BaseRaftState {
     super(replica);
   }
 
-  // /**
-  //  * Run the replica with logic defined by each state.
-  //  *
-  //  * [FOLLOWER] Set up the electionTimeout mechanism. Add the message handler for all incoming messages (will either be a 'heartbeat'/appendEntries RPC or RequestVote RPC).
-  //  * @method run */
-  // run() {
-  //   this.setupTimeout(this.timeoutHandler, getRandomDuration());
-  //   this.replica.socket.on('message', this.messageHandler);
-  // }
+  /**
+   * Run the replica with logic defined by each state.
+   *
+   * [FOLLOWER] Set up the electionTimeout mechanism. Add the message handler for all incoming messages (will either be a 'heartbeat'/appendEntries RPC or RequestVote RPC).
+   * @method run */
+  run() {
+    const randomDuration = Math.floor(Math.random() * 150 + 150);
+    this.setupTimeout(this.timeoutHandler, randomDuration);
+
+    this.replica.socket.on('message', this.messageHandler);
+  }
+
+  /**
+   * Set up the timeout for the state.
+   * @method setupTimeout
+   * @param {Function} callback - Callback function to be executed on timeout.
+   * @param {number} timeout - Timeout duration in milliseconds.
+   */
+  setupTimeout(callback, timeout) {
+    this.timeoutId = setTimeout(callback, timeout);
+  }
 
   // /**
-  //  * Set up the timeout for the state.
-  //  * @method setupTimeout
-  //  * @param {Function} callback - Callback function to be executed on timeout.
-  //  * @param {number} timeout - Timeout duration in milliseconds.
+  //  * Clear the timeout and additional logic depending on state.
+  //  *
+  //  * [FOLLOWER] Clear the timeout when there is a heartbeat from the leader or a RequestVote RPC.
+  //  * @method clearTimeout
   //  */
-  // setupTimeout(callback, timeout) {
-  //   super.setupTimeout(callback, timeout);
+  // clearTimeout() {
+  //   clearTimeout(this.timeoutId);
+  //   this.timeoutId = null;
   // }
 
   /**
@@ -69,6 +78,5 @@ class FollowerState extends BaseRaftState {
   }
 }
 
-module.exports = {
-  FollowerState,
-};
+// Set up prototype inheritance for LeaderState
+LeaderState.prototype = Object.create(BaseRaftState.prototype);

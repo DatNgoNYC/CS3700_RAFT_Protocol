@@ -1,5 +1,6 @@
 // eslint-disable-next-line no-unused-vars
 const { Replica } = require('../Replica');
+const { getRandomDuration } = require('../Utilities');
 
 /**
  * Base class for Raft states (Pseudo-abstract).
@@ -14,18 +15,27 @@ class BaseRaftState {
   constructor(replica) {
     /** @property {Replica} - The state's replica instance we use as context. */
     this.replica = replica;
+
+    // Bind methods to the instance to preserve the context
+    this.setupTimeout = this.setupTimeout.bind(this);
+    // this.clearTimeout = this.clearTimeout.bind(this);
+    this.timeoutHandler = this.timeoutHandler.bind(this);
+    this.messageHandler = this.messageHandler.bind(this);
   }
 
   /**
    * Run the replica with logic defined by each state.
-   * @method run 
-   * @abstract */
+   * 
+   * 1. Set up the state's 'timeout' mechanism.
+   * 2. Set up the state's message handler logic.
+   * @method run */
   run() {
-    throw new Error('Abstract method run must be overridden with state specific logic.');
+    this.setupTimeout(this.timeoutHandler, getRandomDuration());
+    this.replica.socket.on('message', this.messageHandler);
   }
 
   /**
-   * Each state in Raft has a timeout mechanism - something it should do by default after some time... Set it up here with the given timeout handler and the give timeout duration
+   * Each state in Raft has a 'timeout' mechanism - something it should do by default after some time... Set it up here with the given timeout handler and the give timeout duration
    * @method setupTimeout
    * @param {Function} timeoutHandler - Callback function to be executed on timeout.
    * @param {number} timeoutDuration - Timeout duration in milliseconds.
