@@ -11,7 +11,7 @@ const Types = require('../Types');
 
 /** [Raft] Follower state class.
  *
- * A replica in the Follower state will take the role of listening and logging under the coordination/lead of the Leader replica. Or responding to Candidates when necessary.
+ * A replica in the Follower state will take the role of listening and logging and replicating under the coordination/lead of the Leader replica. Or responding to Candidates when necessary.
  * @class
  * @extends BaseRaftState
  */
@@ -21,19 +21,17 @@ class FollowerState extends BaseRaftState {
    */
   constructor(replica) {
     super(replica);
+
+    /** @property {string} - The cluster's leaderId for followers to redirect candidates. */
+    this.leader = "FFFF";
   }
 
-  /** [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message received.
+  /** [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message received. The follower should appropiately respond to RPCs and redirect client requests.
    * @method run */
   run() {
     this.setupTimeout(this.timeoutHandler, getRandomDuration());
-    this.replica.socket.on('message', (buffer) => {
-      // Convert buffer to string and then parse as JSON
-      const jsonString = buffer.toString('utf-8');
-      const message = JSON.parse(jsonString);
 
-      this.messageHandler(message);
-    });
+    this.replica.socket.on('message', this.messageHandler);
   }
 
   /** [Raft] In the Follower state you should transition the replica to the candidate state. In this state, the 'timeout' is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
@@ -52,22 +50,27 @@ class FollowerState extends BaseRaftState {
    *    - Else, if this replica has not voted yet or the replica has already voted for the candidate, then check to see if the candidate
    *
    * @method messageHandler
-   * @param {Types.RequestVoteRPC} message - The message this replica's received. */
-  messageHandler(message) {
+   * @param {Buffer} buffer - The message this replica's received. */
+  messageHandler(buffer) {
     clearTimeout(this.timeoutId);
 
-    /** @type { Types.Redirect | Types.VoteResponse } - The response we'll send. The type of message received dicates the type of the response we send. */
+    const jsonString = buffer.toString('utf-8');  // Convert buffer to string 
+    /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } */
+    const message = JSON.parse(jsonString); // Parse from JSON to JS object
+    /** @type { Types.Redirect | Types.RequestVoteReponse } - The response we'll send. The type of message received dicates the type of the response we send. */
     let response;
+    
     switch (message.type) {
       case 'AppendEntryRPC':
         break;
 
       case 'RequestVoteRPC':
+        /** @type {Types.RequestVoteReponse} */
         response = {
           src: this.replica.id,
           dst: message.src,
           leader: this.replica.votedFor,
-          type: 'VoteResponse',
+          type: 'RequestVoteReponse',
           MID: message.MID,
 
           term: this.replica.currentTerm,
@@ -96,11 +99,13 @@ class FollowerState extends BaseRaftState {
         break;
 
       default:
+        /** @type {Types.Redirect} */
         response = {
           src: this.replica.id,
           dst: message.src,
-          leader: this.replica.votedFor,
+          leader: this.leader,
           type: 'redirect',
+
           MID: message.MID,
         };
         this.replica.send(response);

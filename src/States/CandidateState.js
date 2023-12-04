@@ -71,12 +71,17 @@ class CandidateState extends BaseRaftState {
   /** [Raft] Upon receiving a message the Candidate replica will see if it has enough votes to transition to the Leader state.
    *
    * @method messageHandler
-   * @param { Types.VoteResponse | Types.AppendEntryRPC | Types.RequestVoteRPC } message - The message this replica's received. */
-  messageHandler(message) {
-    /** @type {number} - The minimum number of votes to needed to become leader. */
-    const quorum = Math.floor(this.replica.others.length / 2) + 1;
-    /** @type {Types.Message} - The response we'll send. The type of message received dicates the type of the response we send. */
+   * @param {Buffer} buffer - The message this replica's received. */
+  messageHandler(buffer) {
+    clearTimeout(this.timeoutId);
+
+    const jsonString = buffer.toString('utf-8'); // Convert buffer to string
+    /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } */
+    const message = JSON.parse(jsonString); // Parse from JSON to JS object
+    /** @type { Types.Redirect | Types.RequestVoteReponse } - The response we'll send. The type of message received dicates the type of the response we send. */
     let response;
+    /** @type {number} - Number of replicas needed to reach consensus. */
+    const quorum = Math.floor(this.replica.others.length / 2) + 1;
 
     switch (message.type) {
       case 'AppendEntriesRPC':

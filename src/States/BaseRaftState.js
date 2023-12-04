@@ -54,10 +54,10 @@ class BaseRaftState {
   /**
    * Each state has specific message handling logic.
    * @method messageHandler
-   * @param {Message}
+   * @param {Buffer} message - The message the replica's received.
    * @abstract   */
-  messageHandler() {
-    throw new Error('Abstract method run must be overridden with state specific logic.');
+  messageHandler(message) {
+    throw new Error(`Abstract method run must be overridden with state specific logic. ${message}`);
   }
 }
 

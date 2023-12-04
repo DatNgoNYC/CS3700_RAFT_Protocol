@@ -71,11 +71,11 @@
  */
 
 /**
- * The VoteResponse message type from a replica to a candidate.
+ * The RequestVoteReponse message type from a replica to a candidate.
  *
  *  - {number} term - The src's currentTerm
  *  - {boolean} voteGranted - True means the candidate received the vote.
- * @typedef {Message & { type: 'VoteResponse', term: number, voteGranted: boolean }} VoteResponse
+ * @typedef {Message & { type: 'RequestVoteReponse', term: number, voteGranted: boolean }} RequestVoteReponse
  */
 
 module.exports = {};

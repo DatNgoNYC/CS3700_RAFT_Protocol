@@ -1,6 +1,6 @@
+const { BROADCAST } = require('../Replica');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
-const { BROADCAST } = require('../Replica');
 const Types = require('../Types');
 const BaseRaftState = require('./BaseRaftState');
 
@@ -38,7 +38,12 @@ class LeaderState extends BaseRaftState {
     };
     this.replica.send(initialHeartbeat);
     this.setupTimeout(this.timeoutHandler, 75);
-    this.replica.socket.on('message', this.messageHandler);
+    this.replica.socket.on('message', (buffer) => {
+      const jsonString = buffer.toString('utf-8');  // Convert buffer to string 
+      const message = JSON.parse(jsonString); // Parse from JSON to JS object
+
+      this.messageHandler(message);
+    });  
   }
 
   /** [Raft] The leader should send out heartbeats to prevent election timeouts.
@@ -64,13 +69,19 @@ class LeaderState extends BaseRaftState {
   /** [Raft] Upon receiving a message the Leader will...
    *
    * @method messageHandler
-   * @param { Types.AppendEntryRPC | Types.RequestVoteRPC | Types.AppendEntryResponse } message - The message this replica's received. */
-  messageHandler(message) {
+   * @method messageHandler
+   * @param {Buffer} buffer - The message this replica's received. */
+  messageHandler(buffer) {
+    clearTimeout(this.timeoutId);
+
+    const jsonString = buffer.toString('utf-8');  // Convert buffer to string 
+    /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } */
+    const message = JSON.parse(jsonString); // Parse from JSON to JS object
+    /** @type { Types.Redirect | Types.RequestVoteReponse } - The response we'll send. The type of message received dicates the type of the response we send. */
+    let response;
     /** @type {number} */
     // const quorum = Math.floor(this.replica.others.length / 2) + 1;
-
-    /** @type {Types.Message} - Our response. The type of message received dicates the type of the response we send. */
-    let response;
+    
     switch (message.type) {
       case 'AppendEntriesRPC':
         // case where there is another leader somehow... maybe from a network partition, slow network? anywho, will have to look into how to decide which log from the leaders are valid, decide leader of new cluster, and more stuff im sure.
@@ -81,7 +92,7 @@ class LeaderState extends BaseRaftState {
         break;
 
       case 'AppendEntryResponse':
-        
+
         break;
 
       case 'get':

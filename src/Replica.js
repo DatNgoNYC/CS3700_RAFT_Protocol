@@ -41,9 +41,9 @@ class Replica {
      * (Updated on stable storage before responding to RPCs) */
     /** @property {number} term - This replica's current term. */
     this.currentTerm = 0;
-    /** @property {string} - The candidate that received this replica's vote this current term. Changes to current term's leader after a leader is established. */
+    /** @property {string} - The candidate that received this replica's vote this current term. */
     this.votedFor = null;
-    /** @property {Types.Entry[]} log - This replica's log of entries (get/puts) */
+    /** @property {Types.Entry[]} log - This replica's log of entries (puts) */
     this.log = [];
     /** VOLATILE state on all servers:  */
     /** @property {number} commitIndex - index of highest log entry known to be committed (initialized to 0, increases monotonically). */
@@ -66,6 +66,8 @@ class Replica {
     this.send(hello);
 
     this.state.run();
+
+    // add the initial handlemessage here
   }
 
   /** Change the the state of the replica to the given state and then run the replica with the state's logic
@@ -74,6 +76,8 @@ class Replica {
   changeState(state) {
     this.state = state;
     this.state.run();
+
+    // do something here to handle attaching and removing recursively. 
   }
 
   /** Send a message.

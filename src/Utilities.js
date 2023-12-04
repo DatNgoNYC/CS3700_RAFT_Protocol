@@ -7,7 +7,7 @@ function getRandomMID() {
 }
 
 /**
- * @returns a random duration for the election cycle.
+ * @returns a random duration for the election cycle between 150 and 300.
  */
 function getRandomDuration() {
   return Math.floor(Math.random() * 150 + 150);
