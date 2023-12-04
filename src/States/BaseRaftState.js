@@ -27,7 +27,7 @@ class BaseRaftState {
    *
    * 1. Set up the state's 'timeout' mechanism.
    * 2. Set up the state's message handler logic.
-   * @method run 
+   * @method run
    * @abstract */
   run() {
     throw new Error('Abstract method run must be overridden with state specific logic.');
@@ -37,7 +37,8 @@ class BaseRaftState {
    * Each state in Raft has a 'timeout' mechanism - something it should do by default after some time... Set it up here with the given timeout handler and the give timeout duration
    * @method setupTimeout
    * @param {Function} timeoutHandler - Callback function to be executed on timeout.
-   * @param {number} timeoutDuration - Timeout duration in milliseconds. */
+   * @param {number} timeoutDuration - Timeout duration in milliseconds.
+   */
   setupTimeout(timeoutHandler, timeoutDuration) {
     this.timeoutId = setTimeout(timeoutHandler, timeoutDuration);
   }

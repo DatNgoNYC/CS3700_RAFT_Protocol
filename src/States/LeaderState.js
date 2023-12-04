@@ -28,27 +28,6 @@ class LeaderState extends BaseRaftState {
   }
 
   /**
-   * Set up the timeout for the state.
-   * @method setupTimeout
-   * @param {Function} callback - Callback function to be executed on timeout.
-   * @param {number} timeout - Timeout duration in milliseconds.
-   */
-  setupTimeout(callback, timeout) {
-    this.timeoutId = setTimeout(callback, timeout);
-  }
-
-  // /**
-  //  * Clear the timeout and additional logic depending on state.
-  //  *
-  //  * [FOLLOWER] Clear the timeout when there is a heartbeat from the leader or a RequestVote RPC.
-  //  * @method clearTimeout
-  //  */
-  // clearTimeout() {
-  //   clearTimeout(this.timeoutId);
-  //   this.timeoutId = null;
-  // }
-
-  /**
    * The event handler, dependent on state, for when the replica has a 'timeout' event.
    *
    * [FOLLOWER] In the Follower state you should transition the replica to the candidate state. In this context, the 'timeout' of the follower is the election timeout. Remove the current messageHandler for this state before you transition to the new one.

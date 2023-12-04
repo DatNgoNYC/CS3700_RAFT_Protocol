@@ -24,30 +24,36 @@ class Replica {
    * @param {string[]} others - An array of IDs of other replicas.
    */
   constructor(port, id, others) {
-    console.log(typeof port, port, id);
-    /** @property {int} port - This replica's port number on the localhost that you should send UDP packets to in order to communicate with your replicas. */
+    /** @property {number} port - This replica's port number on the localhost that you should send UDP packets to in order to communicate with your replicas. */
     this.port = port;
     /** @property {string} id - This replica's id to identify itself in messages. */
     this.id = id;
-    /** @property {string[]} others - The other replicas in the replica set. */
+    /** @property {string[]} others - The other replicas in the replica cluster. */
     this.others = others;
     /** @property {Socket} - This replica's socket it will use to send messages. */
     this.socket = createSocket('udp4');
-    // this.socket.bind(0, '0.0.0.0');
-    /**
-     * The current state of the Raft algorithm.
-     * @property {BaseRaftState} - This replica's current state. */
+    this.socket.bind(0, '0.0.0.0');
+    /** @property {BaseRaftState} - This replica's current state. */
     this.state = new FollowerState(this);
 
-    /* ________ Raft properties ________ */
-    /** @property {int} term - This replica's current term. */
-    this.term = 0;
+    /*  🚣‍♀️ [Raft] 🚣‍♀️ */
+    /** PERSISTENT state on all servers:
+     * (Updated on stable storage before responding to RPCs) */
+    /** @property {number} term - This replica's current term. */
+    this.currentTerm = 0;
+    /** @property {string} - The candidate that received this replica's vote this current term.  */
+    this.votedFor = null;
     /** @property {Entry[]} log - This replica's log of entries (get/puts) */
     this.log = [];
+
+    /** VOLATILE state on all servers:  */
+    /** @property {number} commitIndex - index of highest log entry known to be committed (initialized to 0, increases monotonically). */
+    this.commitIndex = 0;
+    /** @property {number} lastApplied - index of highest log entry applied to state machine (initialized to 0, increases monotonically). */
+    this.lastApplied = 0;
   }
 
-  /**
-   * Get the replica up and running, using the current state's logic.
+  /** Get the replica up and running, using the current state's logic.
    * @method run */
   run() {
     // Send a HELLO message once at startup.
@@ -63,8 +69,7 @@ class Replica {
     this.state.run();
   }
 
-  /**
-   * Change the the state of the replica to the given state and then run the replica with the state's logic
+  /** Change the the state of the replica to the given state and then run the replica with the state's logic
    * @method changeState
    * @param {BaseRaftState} state - The new state of the replica. */
   changeState(state) {
@@ -72,8 +77,7 @@ class Replica {
     this.state.run();
   }
 
-  /**
-   * Send a message.
+  /** Send a message.
    * @method send
    * @param {Types.Message} message - The message to send. */
   send(message) {

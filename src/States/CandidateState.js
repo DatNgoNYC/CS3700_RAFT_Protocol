@@ -1,69 +1,104 @@
+const { getRandomDuration, getRandomMID } = require('../Utilities');
 const BaseRaftState = require('./BaseRaftState');
+// Disabled rule for JSDoc typing purposes.
+// eslint-disable-next-line no-unused-vars
+const Types = require('../Types');
+const { BROADCAST } = require('../Replica');
 
-/**
- * Candidate state class.
+/** [Raft] Candidate state class.
+ *
+ * A replica in the Candidate state will try up to take the Leader role by sending out VoteRequest RPCS. It will continue to do so unless there is an AppendEntry RPC from a leader with an overriding term. slay.
  * @class
  * @extends BaseRaftState
  */
 class CandidateState extends BaseRaftState {
-  /**
-   * Creates an instance of FollowerState.
+  /** Creates an instance of CandidateState.
    * @param {Replica} replica - The Replica instance.
    */
   constructor(replica) {
     super(replica);
+
+    /** @property {int} voteTally - The current vote tally for the candidate. */
+    this.voteTally = 0;
   }
 
-  /**
-   * Run the replica with logic defined by each state.
-   *
-   * [FOLLOWER] Set up the electionTimeout mechanism. Add the message handler for all incoming messages (will either be a 'heartbeat'/appendEntries RPC or RequestVote RPC).
+  /** [Raft] On conversion to candidacy, we start the election. We rerun the election if we did not receive a majority of the votes and our election timeout executes.
    * @method run */
   run() {
-    const randomDuration = Math.floor(Math.random() * 150 + 150);
-    this.setupTimeout(this.timeoutHandler, randomDuration);
+    /* Increment the current term. */
+    this.replica.currentTerm += 1;
+    
+    /* Vote for self. */
+    this.replica.votedFor = this.replica.id;
+    this.voteTally = 1;
 
+    /** Broadcast the RequestVoteRPC to our replica cluster.
+    /** @type {Types.RequestVoteRPC} - Broadcast the VoteRequestRPC using the broadcast channel */
+    const requestVoteRPC_Broadcasted = {
+      src: this.replica.id,
+      dst: BROADCAST,
+      leader: this.replica.votedFor,
+      type: 'RequestVoteRPC',
+      MID: getRandomMID(),
+    };
+    this.replica.send(requestVoteRPC_Broadcasted);
+
+    this.setupTimeout(this.timeoutHandler, getRandomDuration());
     this.replica.socket.on('message', this.messageHandler);
   }
 
-  /**
-   * Set up the timeout for the state.
-   * @method setupTimeout
-   * @param {Function} callback - Callback function to be executed on timeout.
-   * @param {number} timeout - Timeout duration in milliseconds.
-   */
-  setupTimeout(callback, timeout) {
-    this.timeoutId = setTimeout(callback, timeout);
-  }
-
-  /**
-   * The event handler, dependent on state, for when the replica has a 'timeout' event.
-   *
-   * [FOLLOWER] In the Follower state you should transition the replica to the candidate state. In this context, the 'timeout' of the follower is the election timeout. Remove the current messageHandler for this state before you transition to the new one.
-   * @method timeoutHandler
-   */
+  /** [Raft] The candidate should rerun the election on timeout.
+   * @method timeoutHandler   */
   timeoutHandler() {
-    this.replica.socket.removeListener('message', this.messageHandler);
-    this.replica.changeState(new CandidateState(this.replica));
+    /* Vote for self. */
+    this.replica.votedFor = this.replica.id;
+    this.voteTally = 1;
+
+    /** Broadcast the RequestVoteRPC to our replica cluster.
+    /** @type {Types.RequestVoteRPC} - Broadcast the VoteRequestRPC using the broadcast channel */
+    const requestVoteRPC_Broadcasted = {
+      src: this.replica.id,
+      dst: BROADCAST,
+      leader: this.replica.votedFor,
+      type: 'RequestVoteRPC',
+      MID: getRandomMID(),
+    };
+    this.replica.send(requestVoteRPC_Broadcasted);
+
   }
 
-  /**
-   * Each state has specific message handling logic.
+  /** [Raft] Upon receiving a message the Candidate replica will see if it has enough votes to transition to the Leader state.
    *
-   * [FOLLOWER] Upon receiving a heartbeat/AppendEntry RPC or VoteRequest RPC it should execute the appropiate steps and reset its election timeout with a random duration from 150ms - 300ms. If there is a VoteRequest RPC, execute the appropiate steps.
    * @method messageHandler
-   * @param {Buffer} message */
+   * @param {Types.VoteResponse} message - The message this replica's received. */
   messageHandler(message) {
-    console.log(message.toJSON());
-    // respond however we'd like...
-    // if appendEntry
-    //  then do what needs to be done
-    // else if VoteRequest
+    /** @type {number} - The minimum number of votes to needed to become leader. */
+    const quorum = Math.floor(this.replica.others.length / 2) + 1;
+    /** @type {Types.Message} - The response we'll send. The type of message received dicates the type of the response we send. */
+    let response;
 
-    clearTimeout(this.timeoutId);
+    switch (message.type) {
+      case 'VoteResponse':
+        this.voteTally += message.voteGranted ? 1 : 0;
 
-    const randomDuration = Math.floor(Math.random() * 150 + 150);
-    this.setupTimeout(this.timeoutHandler, randomDuration);
+        if (this.voteTally >= quorum) {
+          this.replica.socket.removeListener('message', this.messageHandler);
+          this.replica.changeState();
+        }
+        break;
+
+      default:
+        /** @type {Types.Redirect} */
+        response = {
+          src: this.replica.id,
+          dst: message.src,
+          leader: this.replica.votedFor,
+          type: 'redirect',
+          MID: message.MID,
+        };
+        this.replica.send(response);
+        break;
+    }
   }
 }
 
