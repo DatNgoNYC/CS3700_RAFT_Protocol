@@ -23,7 +23,7 @@ class FollowerState extends BaseRaftState {
     super(replica);
 
     /** @property {string} - The cluster's leaderId for followers to redirect candidates. */
-    this.leader = "FFFF";
+    this.leader = 'FFFF';
   }
 
   /** [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message received. The follower should appropiately respond to RPCs and redirect client requests.
@@ -37,9 +37,8 @@ class FollowerState extends BaseRaftState {
   /** [Raft] In the Follower state you should transition the replica to the candidate state. In this state, the 'timeout' is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
    * @method timeoutHandler */
   timeoutHandler() {
-    // Remove Follower state's listener so that it doesn't fire when a 'message' even during the new state.
-    clearTimeout(this.timeoutId);
-    this.replica.socket.removeListener('message', this.messageHandler);
+    clearTimeout(this.timeoutId); // Clear the current timeout.
+    this.replica.socket.removeListener('message', this.messageHandler); // Remove this state's listener so that it doesn't fire in the new state.
     this.replica.changeState(new CandidateState(this.replica));
   }
 
@@ -52,20 +51,20 @@ class FollowerState extends BaseRaftState {
    * @method messageHandler
    * @param {Buffer} buffer - The message this replica's received. */
   messageHandler(buffer) {
-    clearTimeout(this.timeoutId);
+    clearTimeout(this.timeoutId); // Reset the timeout.
 
-    const jsonString = buffer.toString('utf-8');  // Convert buffer to string 
-    /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } */
+    const jsonString = buffer.toString('utf-8'); /*  Convert buffer to string  */
+    /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } - The message we've received. */
     const message = JSON.parse(jsonString); // Parse from JSON to JS object
-    /** @type { Types.Redirect | Types.RequestVoteReponse } - The response we'll send. The type of message received dicates the type of the response we send. */
+    /** @type { Types.Redirect | Types.RequestVoteReponse } - The response we'll send. The type of Message received dicates the type of the response we send. */
     let response;
-    
+
     switch (message.type) {
       case 'AppendEntryRPC':
         break;
 
       case 'RequestVoteRPC':
-        /** @type {Types.RequestVoteReponse} */
+        /** @type {Types.RequestVoteReponse} - We send back a RequestVoteResponse response. */
         response = {
           src: this.replica.id,
           dst: message.src,

@@ -27,15 +27,11 @@ class CandidateState extends BaseRaftState {
   /** [Raft] On conversion to candidacy, we start the election. We rerun the election if we did not receive a majority of the votes and our election timeout executes.
    * @method run */
   run() {
-    /* Increment the current term. */
-    this.replica.currentTerm += 1;
+    this.replica.currentTerm += 1; // Increment the currentTerm before starting operations.
+    this.replica.votedFor = this.replica.id; // Vote for self.
+    this.voteTally = 1; // Increase the vote tally after voting for self.
 
-    /* Vote for self. */
-    this.replica.votedFor = this.replica.id;
-    this.voteTally = 1;
-
-    /** Broadcast the RequestVoteRPC to our replica cluster.
-    /** @type {Types.RequestVoteRPC} - Broadcast the VoteRequestRPC using the broadcast channel */
+    /** @type {Types.RequestVoteRPC} - Broadcast the VoteRequestRPC to our replica cluster. */
     const requestVoteRPC_Broadcasted = {
       src: this.replica.id,
       dst: BROADCAST,
