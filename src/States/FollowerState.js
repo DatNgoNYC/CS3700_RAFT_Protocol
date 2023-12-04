@@ -47,9 +47,9 @@ class FollowerState extends BaseRaftState {
 
   /** [Raft] The replica can either get a message from the client or another replica. Reset the timer on each message. While in the Follower state...
    *
-   * 1. If the message is type 'get' or 'put' then it is from a client. In which case send back a "redirect" message.
-   *
-   * 2. If the message is from another replica... follow protocol.
+   * - If the message is a RequestVoteRPC...
+   *    - If the candidate's term is less than this replica's current term, REJECT vote.
+   *    - Else, if this replica has not voted yet or the replica has already voted for the candidate, then check to see if the candidate
    *
    * @method messageHandler
    * @param {Types.RequestVoteRPC} message - The message this replica's received. */
@@ -71,27 +71,28 @@ class FollowerState extends BaseRaftState {
           MID: message.MID,
 
           term: this.replica.currentTerm,
-          voteGranted: undefined,
+          voteGranted: false,
         };
 
-        if (
-          message.term < this.replica.currentTerm /** Reply false if term < currentTerm (§5.1) */
-        ) {
+        // Decide whether to grant vote here...
+        if (message.term < this.replica.currentTerm) {
           response.voteGranted = false;
-          this.replica.send(response);
-        } else if (
-          (this.replica.votedFor === null || this.replica.votedFor === message.candidateID) & //  If votedFor is null or candidateId
-          true // [TODO] and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
-        ) {
-          response.voteGranted = true;
-
-          this.replica.send(response);
         } else {
-          response.voteGranted = false;
+          // If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
+          if (this.replica.votedFor === message.candidateID) {
+            response.voteGranted = true;
+          } else if (
+            this.replica.votedFor === null &&
+            message.lastLogIndex >= this.replica.log.length &&
+            message.lastLogTerm >= this.replica.log[this.replica.log.length].term
+          ) {
+            response.voteGranted = true;
 
-          this.replica.send(response);
+            this.replica.votedFor = message.candidateID;
+          }
         }
 
+        this.replica.send(response);
         break;
 
       default:

@@ -1,8 +1,13 @@
+// Disabled rule for JSDoc typing purposes.
+// eslint-disable-next-line no-unused-vars
+const { BROADCAST } = require('../Replica');
+const Types = require('../Types');
 const BaseRaftState = require('./BaseRaftState');
-const { CandidateState } = require('./CandidateState');
 
-/**
- * Leader state class.
+/** [Raft] Leader state class.
+ *
+ * - Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server; repeat during idle periods to prevent election timeouts (§5.2).
+ * - If command received from client: append entry to local log, respond after entry applied to state machine (§5.3).
  * @class
  * @extends BaseRaftState
  */
@@ -15,47 +20,92 @@ class LeaderState extends BaseRaftState {
     super(replica);
   }
 
-  /**
-   * Run the replica with logic defined by each state.
-   *
-   * [FOLLOWER] Set up the electionTimeout mechanism. Add the message handler for all incoming messages (will either be a 'heartbeat'/appendEntries RPC or RequestVote RPC).
+  /** [Raft] Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server. Set up the timeout to send heartbeats to prevent election timeouts.
    * @method run */
   run() {
-    const randomDuration = Math.floor(Math.random() * 150 + 150);
-    this.setupTimeout(this.timeoutHandler, randomDuration);
+    /** @type {Types.AppendEntryRPC} */
+    const initialHeartbeat = {
+      src: this.replica.id,
+      dst: BROADCAST,
+      leader: this.replica.id,
+      type: 'AppendEntryRPC',
 
+      term: this.replica.currentTerm,
+      leaderId: this.replica.id,
+      prevLogIndex: this.replica.log.length,
+      entries: [],
+      leaderCommit: this.replica.commitIndex,
+    };
+    this.replica.send(initialHeartbeat);
+    this.setupTimeout(this.timeoutHandler, 75);
     this.replica.socket.on('message', this.messageHandler);
   }
 
-  /**
-   * The event handler, dependent on state, for when the replica has a 'timeout' event.
-   *
-   * [FOLLOWER] In the Follower state you should transition the replica to the candidate state. In this context, the 'timeout' of the follower is the election timeout. Remove the current messageHandler for this state before you transition to the new one.
+  /** [Raft] The leader should send out heartbeats to prevent election timeouts.
    * @method timeoutHandler
    */
   timeoutHandler() {
-    this.replica.socket.removeListener('message', this.messageHandler);
-    this.replica.changeState(new CandidateState(this.replica));
+    /** @type {Types.AppendEntryRPC} */
+    const heartbeat = {
+      src: this.replica.id,
+      dst: BROADCAST,
+      leader: this.replica.id,
+      type: 'AppendEntryRPC',
+
+      term: this.replica.currentTerm,
+      leaderId: this.replica.id,
+      prevLogIndex: this.replica.log.length,
+      entries: [],
+      leaderCommit: this.replica.commitIndex,
+    };
+    this.replica.send(heartbeat);
   }
 
-  /**
-   * Each state has specific message handling logic.
+  /** [Raft] Upon receiving a message the Leader will...
    *
-   * [FOLLOWER] Upon receiving a heartbeat/AppendEntry RPC or VoteRequest RPC it should execute the appropiate steps and reset its election timeout with a random duration from 150ms - 300ms. If there is a VoteRequest RPC, execute the appropiate steps.
    * @method messageHandler
-   * @param {Message} */
-  messageHandler() {
-    // respond however we'd like...
-    // if appendEntry
-    //  then do what needs to be done
-    // else if VoteRequest
+   * @param { Types.AppendEntryRPC | Types.RequestVoteRPC | Types.AppendEntryResponse } message - The message this replica's received. */
+  messageHandler(message) {
+    /** @type {number} */
+    // const quorum = Math.floor(this.replica.others.length / 2) + 1;
 
-    clearTimeout(this.timeoutId);
+    /** @type {Types.Message} - Our response. The type of message received dicates the type of the response we send. */
+    let response;
+    switch (message.type) {
+      case 'AppendEntriesRPC':
+        // case where there is another leader somehow... maybe from a network partition, slow network? anywho, will have to look into how to decide which log from the leaders are valid, decide leader of new cluster, and more stuff im sure.
+        break;
 
-    const randomDuration = Math.floor(Math.random() * 150 + 150);
-    this.setupTimeout(this.timeoutHandler, randomDuration);
+      case 'RequestVoteRPC':
+        // case where there is a candidate somehow... maybe from a network partition, slow network? anywho, will have to look into what to do.
+        break;
+
+      case 'AppendEntryResponse':
+        
+        break;
+
+      case 'get':
+        break;
+
+      case 'put':
+        break;
+
+      default:
+        /** @type {Types.Redirect} */
+        response = {
+          src: this.replica.id,
+          dst: message.src,
+          leader: this.replica.votedFor,
+          type: 'redirect',
+
+          MID: message.MID,
+        };
+        this.replica.send(response);
+        break;
+    }
   }
 }
 
-// Set up prototype inheritance for LeaderState
-LeaderState.prototype = Object.create(BaseRaftState.prototype);
+module.exports = {
+  LeaderState,
+};

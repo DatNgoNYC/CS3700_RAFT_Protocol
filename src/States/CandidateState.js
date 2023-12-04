@@ -4,6 +4,8 @@ const BaseRaftState = require('./BaseRaftState');
 // eslint-disable-next-line no-unused-vars
 const Types = require('../Types');
 const { BROADCAST } = require('../Replica');
+const { LeaderState } = require('./LeaderState');
+require('./LeaderState');
 
 /** [Raft] Candidate state class.
  *
@@ -27,7 +29,7 @@ class CandidateState extends BaseRaftState {
   run() {
     /* Increment the current term. */
     this.replica.currentTerm += 1;
-    
+
     /* Vote for self. */
     this.replica.votedFor = this.replica.id;
     this.voteTally = 1;
@@ -64,13 +66,12 @@ class CandidateState extends BaseRaftState {
       MID: getRandomMID(),
     };
     this.replica.send(requestVoteRPC_Broadcasted);
-
   }
 
   /** [Raft] Upon receiving a message the Candidate replica will see if it has enough votes to transition to the Leader state.
    *
    * @method messageHandler
-   * @param {Types.VoteResponse} message - The message this replica's received. */
+   * @param { Types.VoteResponse | Types.AppendEntryRPC | Types.RequestVoteRPC } message - The message this replica's received. */
   messageHandler(message) {
     /** @type {number} - The minimum number of votes to needed to become leader. */
     const quorum = Math.floor(this.replica.others.length / 2) + 1;
@@ -78,17 +79,24 @@ class CandidateState extends BaseRaftState {
     let response;
 
     switch (message.type) {
+      case 'AppendEntriesRPC':
+        break;
+
+      case 'RequestVoteRPC':
+        break;
+
       case 'VoteResponse':
         this.voteTally += message.voteGranted ? 1 : 0;
 
         if (this.voteTally >= quorum) {
+          clearTimeout(this.timeoutId);
           this.replica.socket.removeListener('message', this.messageHandler);
-          this.replica.changeState();
+          this.replica.changeState(new LeaderState(this.replica));
         }
         break;
 
       default:
-        /** @type {Types.Redirect} */
+        /** @type {Types.Redirect} - The response is a redirect message. */
         response = {
           src: this.replica.id,
           dst: message.src,

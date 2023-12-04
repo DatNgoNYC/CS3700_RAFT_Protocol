@@ -41,11 +41,10 @@ class Replica {
      * (Updated on stable storage before responding to RPCs) */
     /** @property {number} term - This replica's current term. */
     this.currentTerm = 0;
-    /** @property {string} - The candidate that received this replica's vote this current term.  */
+    /** @property {string} - The candidate that received this replica's vote this current term. Changes to current term's leader after a leader is established. */
     this.votedFor = null;
-    /** @property {Entry[]} log - This replica's log of entries (get/puts) */
+    /** @property {Types.Entry[]} log - This replica's log of entries (get/puts) */
     this.log = [];
-
     /** VOLATILE state on all servers:  */
     /** @property {number} commitIndex - index of highest log entry known to be committed (initialized to 0, increases monotonically). */
     this.commitIndex = 0;
