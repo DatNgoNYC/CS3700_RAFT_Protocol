@@ -61,6 +61,7 @@ class Replica {
       dst: 'FFFF',
       leader: 'FFFF',
       type: 'hello',
+      
       MID: getRandomMID(),
     };
     this.send(hello);
@@ -80,7 +81,7 @@ class Replica {
     // do something here to handle attaching and removing recursively. 
   }
 
-  /** Send a message.
+  /** Send a message to the simulator in the required JSON format.
    * @method send
    * @param {Types.Message} message - The message to send. */
   send(message) {

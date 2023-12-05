@@ -1,4 +1,4 @@
-const { getRandomDuration, getRandomMID } = require('../Utilities');
+const { getRandomDuration } = require('../Utilities');
 const BaseRaftState = require('./BaseRaftState');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
@@ -31,15 +31,21 @@ class CandidateState extends BaseRaftState {
     this.replica.votedFor = this.replica.id; // Vote for self.
     this.voteTally = 1; // Increase the vote tally after voting for self.
 
-    /** @type {Types.RequestVoteRPC} - Broadcast the VoteRequestRPC to our replica cluster. */
+    /** @type {Types.RequestVoteRPC} - Our VoteRequestRPC to our replica cluster. */
     const requestVoteRPC_Broadcasted = {
       src: this.replica.id,
       dst: BROADCAST,
-      leader: this.replica.votedFor,
+      leader: 'FFFF',
       type: 'RequestVoteRPC',
-      MID: getRandomMID(),
+
+      term: this.replica.currentTerm,
+      candidateID: this.replica.id,
+      lastLogIndex: this.replica.log.length,
+      lastLogTerm: this.replica.log[this.replica.lastApplied.length]
+        ? this.replica.log[this.replica.lastApplied.length].term
+        : 0,
     };
-    this.replica.send(requestVoteRPC_Broadcasted);
+    this.replica.send(requestVoteRPC_Broadcasted); // Broadcast the VoteRequestRPC to our replica cluster.
 
     this.setupTimeout(this.timeoutHandler, getRandomDuration());
     this.replica.socket.on('message', this.messageHandler);
@@ -48,20 +54,26 @@ class CandidateState extends BaseRaftState {
   /** [Raft] The candidate should rerun the election on timeout.
    * @method timeoutHandler   */
   timeoutHandler() {
-    /* Vote for self. */
     this.replica.votedFor = this.replica.id;
     this.voteTally = 1;
 
-    /** Broadcast the RequestVoteRPC to our replica cluster.
-    /** @type {Types.RequestVoteRPC} - Broadcast the VoteRequestRPC using the broadcast channel */
+    /** @type {Types.RequestVoteRPC} - Our VoteRequestRPC to our replica cluster. */
     const requestVoteRPC_Broadcasted = {
       src: this.replica.id,
       dst: BROADCAST,
-      leader: this.replica.votedFor,
+      leader: 'FFFF',
       type: 'RequestVoteRPC',
-      MID: getRandomMID(),
+
+      term: this.replica.currentTerm,
+      candidateID: this.replica.id,
+      lastLogIndex: this.replica.log.length,
+      lastLogTerm: this.replica.log[this.replica.log.length]
+        ? this.replica.log[this.replica.lastApplied.length].term
+        : 0,
     };
-    this.replica.send(requestVoteRPC_Broadcasted);
+    this.replica.send(requestVoteRPC_Broadcasted); // Broadcast the VoteRequestRPC to our replica cluster.
+
+    this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the next timeout (the election rerunning).
   }
 
   /** [Raft] Upon receiving a message the Candidate replica will see if it has enough votes to transition to the Leader state.

@@ -1,3 +1,6 @@
+/*                                         [General] 
+General types for our project. */
+
 /**
  * General message properties all messages must have for the simulator to be able to process it and send it to the "client" or another "replica" in the replica cluster. :) slay slay slay!
  * @typedef {Object} Message
@@ -40,6 +43,10 @@
  */
 
 
+
+/*                                    🚣‍♀️🚣‍♀️🚣‍♀️🚣‍♀️ [Raft] 🚣‍♀️🚣‍♀️🚣‍♀️🚣‍♀️                             
+The stuff below is related to our specific implementation of Raft. */
+
 /**
  * An entry contains a command for state machine, and the term when entry was received by leader.
  * @typedef {Put & { term: number }} Entry
@@ -75,7 +82,7 @@
  *
  *  - {number} term - The src's currentTerm
  *  - {boolean} voteGranted - True means the candidate received the vote.
- * @typedef {Message & { type: 'RequestVoteReponse', term: number, voteGranted: boolean }} RequestVoteReponse
+ * @typedef {Message & { type: 'RequestVoteReponse', term: number, voteGranted: boolean }} RequestVoteResponse
  */
 
 module.exports = {};
