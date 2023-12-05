@@ -24,7 +24,7 @@ class LeaderState extends BaseRaftState {
    * @method run */
   run() {
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Leader] ... has been elected.`);
+    console.log(`[Leader] ... is now Leader of the cluster.`);
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     /** @type {Types.AppendEntryRPC} */
@@ -42,13 +42,10 @@ class LeaderState extends BaseRaftState {
     };
 
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Leader] ... is broadcasting its first heartbeat.`);
+    console.log(`[Leader] ... first heartbeat.`);
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     this.replica.send(initialHeartbeat);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Leader] ... is setting up timeoutHandler for the first time.`);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
     this.setupTimeout(this.timeoutHandler, 75); // Set up the timeout for the next heartheat.
     this.replica.socket.on('message', this.messageHandler); // Set up the message handler.
   }

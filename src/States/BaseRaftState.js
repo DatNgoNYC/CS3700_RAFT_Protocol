@@ -59,6 +59,10 @@ class BaseRaftState {
   messageHandler(message) {
     throw new Error(`Abstract method run must be overridden with state specific logic. ${message}`);
   }
+
+  changeState(state) {
+    
+  }
 }
 
 module.exports = BaseRaftState;
