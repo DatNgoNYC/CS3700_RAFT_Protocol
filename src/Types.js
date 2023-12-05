@@ -34,7 +34,7 @@ General types for our project. */
 
 /**
  * Or the leader replica may respond with a fail message, in which case the client should retry the get():
- * @typedef {Message { type: 'fail', MID: string } } Fail
+ * @typedef {Message & { type: 'fail', MID: string } } Fail
  */
 
 /**

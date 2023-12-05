@@ -13,7 +13,11 @@ function getRandomDuration() {
   return Math.floor(Math.random() * 150 + 150);
 }
 
+/** @constant BROADCAST - The destintion required to broadcast a message. */
+const BROADCAST = 'FFFF'
+
 module.exports = {
   getRandomMID,
   getRandomDuration,
+  BROADCAST
 };

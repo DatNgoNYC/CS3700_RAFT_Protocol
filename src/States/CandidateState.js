@@ -1,9 +1,8 @@
-const { getRandomDuration } = require('../Utilities');
+const { getRandomDuration, BROADCAST } = require('../Utilities');
 const BaseRaftState = require('./BaseRaftState');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
 const Types = require('../Types');
-const { BROADCAST } = require('../Replica');
 const { LeaderState } = require('./LeaderState');
 require('./LeaderState');
 
@@ -27,6 +26,10 @@ class CandidateState extends BaseRaftState {
   /** [Raft] On conversion to candidacy, we start the election. We rerun the election if we did not receive a majority of the votes and our election timeout executes.
    * @method run */
   run() {
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`Candidate ${this.replica.id} is running for office!`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
     this.replica.currentTerm += 1; // Increment the currentTerm before starting operations.
     this.replica.votedFor = this.replica.id; // Vote for self.
     this.voteTally = 1; // Increase the vote tally after voting for self.
@@ -54,6 +57,12 @@ class CandidateState extends BaseRaftState {
   /** [Raft] The candidate should rerun the election on timeout.
    * @method timeoutHandler   */
   timeoutHandler() {
+    clearTimeout(this.timeoutId);
+    
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`Candidate ${this.replica.id} is RE-running for office!`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
     this.replica.votedFor = this.replica.id;
     this.voteTally = 1;
 
@@ -81,8 +90,6 @@ class CandidateState extends BaseRaftState {
    * @method messageHandler
    * @param {Buffer} buffer - The message this replica's received. */
   messageHandler(buffer) {
-    clearTimeout(this.timeoutId);
-
     const jsonString = buffer.toString('utf-8'); // Convert buffer to string
     /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } */
     const message = JSON.parse(jsonString); // Parse from JSON to JS object
@@ -98,8 +105,11 @@ class CandidateState extends BaseRaftState {
       case 'RequestVoteRPC':
         break;
 
-      case 'VoteResponse':
+      case 'RequestVoteResponse':
         this.voteTally += message.voteGranted ? 1 : 0;
+        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+        console.log(`Candidate ${this.replica.id}, current voteTally: ${this.voteTally}. Quorum: ${quorum}.`);
+        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
         if (this.voteTally >= quorum) {
           clearTimeout(this.timeoutId);
@@ -113,8 +123,9 @@ class CandidateState extends BaseRaftState {
         response = {
           src: this.replica.id,
           dst: message.src,
-          leader: this.replica.votedFor,
+          leader: 'FFFF',
           type: 'redirect',
+
           MID: message.MID,
         };
         this.replica.send(response);

@@ -67,9 +67,8 @@ class FollowerState extends BaseRaftState {
         response = {
           src: this.replica.id,
           dst: message.src,
-          leader: this.replica.votedFor,
-          type: 'RequestVoteReponse',
-          MID: message.MID,
+          leader: this.leader,
+          type: 'RequestVoteResponse',
 
           term: this.replica.currentTerm,
           voteGranted: false,
@@ -77,21 +76,30 @@ class FollowerState extends BaseRaftState {
 
         // Decide whether to grant vote here...
         if (message.term < this.replica.currentTerm) {
+          // If it's in an older term, automatic no 🙅‍♀️.
           response.voteGranted = false;
         } else {
           // If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
           if (this.replica.votedFor === message.candidateID) {
             response.voteGranted = true;
+          } else if (this.replica.votedFor === null && this.replica.log.length === 0) {
+            response.voteGranted = true; // Grant vote!.
+            this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
           } else if (
-            this.replica.votedFor === null &&
-            message.lastLogIndex >= this.replica.log.length &&
-            message.lastLogTerm >= this.replica.log[this.replica.log.length].term
+            // If the logs are NOT empty ...
+            this.replica.votedFor === null && // This follower should not have voted yet this currentTerm.
+            message.lastLogIndex >= this.replica.log.length && // The candidate's log should be AT LEAST as long as this follower's.
+            message.lastLogTerm >= this.replica.log[this.replica.log.length].term // The candidate last log entry's term should be AT LEAST as recent as the follower's.
           ) {
-            response.voteGranted = true;
-
-            this.replica.votedFor = message.candidateID;
+            response.voteGranted = true; // Grant vote!.
+            this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
           }
         }
+
+        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+        console.log(`Follower ${this.replica.id} voted ${response.voteGranted} for replica ${message.src}`);
+        console.log(`Follower ${this.replica.id} is sending response: ${response.voteGranted}, ${response.type}, ${response.term}`);
+        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
         this.replica.send(response);
         break;
@@ -110,7 +118,7 @@ class FollowerState extends BaseRaftState {
         break;
     }
 
-    this.setupTimeout(this.timeoutHandler, getRandomDuration());
+    this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
   }
 }
 

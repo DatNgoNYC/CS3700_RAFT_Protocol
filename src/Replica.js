@@ -8,9 +8,7 @@ const { FollowerState } = require('./States/FollowerState');
 // disabled for JSDoc typing.
 // eslint-disable-next-line no-unused-vars
 const Types = require('./Types');
-const { getRandomMID } = require('./Utilities');
-
-const BROADCAST = 'FFFF';
+const { getRandomMID, BROADCAST } = require('./Utilities');
 
 /**
  * The Replica object. (Also serves as context for our three states: Follower, Candidate, Leader).
@@ -58,10 +56,9 @@ class Replica {
     // Send a HELLO message once at startup.
     const hello = {
       src: this.id,
-      dst: 'FFFF',
+      dst: BROADCAST,
       leader: 'FFFF',
       type: 'hello',
-      
       MID: getRandomMID(),
     };
     this.send(hello);
@@ -92,5 +89,4 @@ class Replica {
 
 module.exports = {
   Replica,
-  BROADCAST,
 };
