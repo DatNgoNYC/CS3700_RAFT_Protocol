@@ -54,7 +54,6 @@ class LeaderState extends BaseRaftState {
    * @method timeoutHandler
    */
   timeoutHandler() {
-    clearTimeout(this.timeoutId);
 
     /** @type {Types.AppendEntryRPC} - The heartbeat we will send. */
     const heartbeat = {

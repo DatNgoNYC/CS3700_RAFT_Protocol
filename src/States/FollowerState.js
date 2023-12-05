@@ -1,4 +1,3 @@
-const { clearTimeout } = require('timers');
 const BaseRaftState = require('./BaseRaftState');
 // const { CandidateState } = require('./CandidateState');
 // Disabled rule for JSDoc typing purposes.
@@ -41,9 +40,9 @@ class FollowerState extends BaseRaftState {
   /** [Raft] In the Follower state you should transition the replica to the candidate state. In this state, the 'timeout' is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
    * @method timeoutHandler */
   timeoutHandler() {
-    clearTimeout(this.timeoutId);
-    this.replica.socket.removeListener('message', this.messageHandler); // Remove this state's listener so that it doesn't fire in the new state.
-    this.replica.changeState('Candidate');
+    // clearTimeout(this.timeoutId);
+    // this.replica.socket.removeListener('message', this.messageHandler); // Remove this state's listener so that it doesn't fire in the new state.
+    this.changeState('Candidate');
   }
 
   /** [Raft] The replica can either get a message from the client or another replica. Reset the timer on each message. While in the Follower state...

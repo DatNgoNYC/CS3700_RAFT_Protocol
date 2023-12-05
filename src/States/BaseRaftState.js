@@ -1,3 +1,4 @@
+// Need for jsdoc
 // eslint-disable-next-line no-unused-vars
 const { Replica } = require('../Replica');
 
@@ -39,7 +40,8 @@ class BaseRaftState {
    * @param {Function} timeoutHandler - Callback function to be executed on timeout.
    * @param {number} timeoutDuration - Timeout duration in milliseconds.
    */
-  setupTimeout(timeoutHandler, timeoutDuration) { 
+  setupTimeout(timeoutHandler, timeoutDuration) {
+    clearTimeout(this.timeoutId)
     this.timeoutId = setTimeout(timeoutHandler, timeoutDuration);
   }
 
@@ -60,8 +62,14 @@ class BaseRaftState {
     throw new Error(`Abstract method run must be overridden with state specific logic. ${message}`);
   }
 
+  /**
+   * Clean up process before state switch. Remove the current state's timeout and messageHandler before changing state.
+   * @param {string} state - The new state we want to change to
+   */
   changeState(state) {
-    
+    clearTimeout(this.timeoutId);
+    this.replica.socket.removeListener('message', this.messageHandler);
+    this.replica.changeState(state);
   }
 }
 

@@ -33,6 +33,7 @@ class Replica {
     /** @property {Socket} - This replica's socket it will use to send messages. */
     this.socket = createSocket('udp4');
     this.socket.bind(0, '0.0.0.0');
+    this.socket.setMaxListeners(1);
     /** @property {BaseRaftState} - This replica's current state. */
     this.state = new FollowerState(this);
 

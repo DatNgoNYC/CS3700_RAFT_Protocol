@@ -59,10 +59,8 @@ class CandidateState extends BaseRaftState {
    * @method timeoutHandler   */
   timeoutHandler() {
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Candidate] ... is RErunning for election.`);
+    console.log(`[Candidate] ... is re-running for election.`);
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-
-    clearTimeout(this.timeoutId);
 
     this.replica.votedFor = this.replica.id;
     this.voteTally = 1;
@@ -106,9 +104,9 @@ class CandidateState extends BaseRaftState {
         // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
         if (message.term >= this.replica.currentTerm) {
-          clearTimeout(this.timeoutId);
-          this.replica.socket.removeListener('message', this.messageHandler);
-          this.replica.changeState('Follower');
+          // clearTimeout(this.timeoutId);
+          // this.replica.socket.removeListener('message', this.messageHandler);
+          this.changeState('Follower');
         }
         break;
 
@@ -119,9 +117,7 @@ class CandidateState extends BaseRaftState {
         this.voteTally += message.voteGranted ? 1 : 0;
 
         if (this.voteTally >= quorum) {
-          clearTimeout(this.timeoutId);
-          this.replica.socket.removeListener('message', this.messageHandler);
-          this.replica.changeState('Leader');
+          this.changeState('Leader');
         }
         break;
 
