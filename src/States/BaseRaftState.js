@@ -39,7 +39,7 @@ class BaseRaftState {
    * @param {Function} timeoutHandler - Callback function to be executed on timeout.
    * @param {number} timeoutDuration - Timeout duration in milliseconds.
    */
-  setupTimeout(timeoutHandler, timeoutDuration) {
+  setupTimeout(timeoutHandler, timeoutDuration) { 
     this.timeoutId = setTimeout(timeoutHandler, timeoutDuration);
   }
 

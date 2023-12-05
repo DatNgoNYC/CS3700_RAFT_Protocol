@@ -23,9 +23,9 @@ class LeaderState extends BaseRaftState {
   /** [Raft] Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server. Set up the timeout to send heartbeats to prevent election timeouts.
    * @method run */
   run() {
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING 
-    console.log('A leader has been elected!');
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING 
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Leader] ... has been elected.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     /** @type {Types.AppendEntryRPC} */
     const initialHeartbeat = {
@@ -40,7 +40,15 @@ class LeaderState extends BaseRaftState {
       entries: [],
       leaderCommit: this.replica.commitIndex,
     };
+
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Leader] ... is broadcasting its first heartbeat.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
     this.replica.send(initialHeartbeat);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Leader] ... is setting up timeoutHandler for the first time.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
     this.setupTimeout(this.timeoutHandler, 75); // Set up the timeout for the next heartheat.
     this.replica.socket.on('message', this.messageHandler); // Set up the message handler.
   }
@@ -49,6 +57,8 @@ class LeaderState extends BaseRaftState {
    * @method timeoutHandler
    */
   timeoutHandler() {
+    clearTimeout(this.timeoutId);
+
     /** @type {Types.AppendEntryRPC} - The heartbeat we will send. */
     const heartbeat = {
       src: this.replica.id,
@@ -64,7 +74,11 @@ class LeaderState extends BaseRaftState {
     };
     this.replica.send(heartbeat);
 
-    this.setupTimeout(this.timeoutHandler, 75); // Set up the timeout for the next heartheat.
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Leader] ... is broadcasting a heartbeat.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
+    this.setupTimeout(this.timeoutHandler, 75);
   }
 
   /** [Raft] Upon receiving a message the Leader will...
@@ -72,8 +86,6 @@ class LeaderState extends BaseRaftState {
    * @method messageHandler
    * @param {Buffer} buffer - The message this replica's received. */
   messageHandler(buffer) {
-    clearTimeout(this.timeoutId);
-
     const jsonString = buffer.toString('utf-8'); // Convert buffer to string
     /** @type { Types.Redirect | Types.AppendEntryResponse | Types.Fail | Types.AppendEntryRPC } */
     const message = JSON.parse(jsonString); // Parse from JSON to JS object
@@ -115,3 +127,5 @@ class LeaderState extends BaseRaftState {
 module.exports = {
   LeaderState,
 };
+
+//

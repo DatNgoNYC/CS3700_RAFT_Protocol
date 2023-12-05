@@ -1,6 +1,6 @@
 const { clearTimeout } = require('timers');
 const BaseRaftState = require('./BaseRaftState');
-const { CandidateState } = require('./CandidateState');
+// const { CandidateState } = require('./CandidateState');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
 const { Replica } = require('../Replica');
@@ -28,7 +28,11 @@ class FollowerState extends BaseRaftState {
 
   /** [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message received. The follower should appropiately respond to RPCs and redirect client requests.
    * @method run */
-  run() {
+ run() {
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Follower] ... is is a new Follower and ready to follow.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
     this.setupTimeout(this.timeoutHandler, getRandomDuration());
 
     this.replica.socket.on('message', this.messageHandler);
@@ -37,8 +41,9 @@ class FollowerState extends BaseRaftState {
   /** [Raft] In the Follower state you should transition the replica to the candidate state. In this state, the 'timeout' is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
    * @method timeoutHandler */
   timeoutHandler() {
+    clearTimeout(this.timeoutId);
     this.replica.socket.removeListener('message', this.messageHandler); // Remove this state's listener so that it doesn't fire in the new state.
-    this.replica.changeState(new CandidateState(this.replica));
+    this.replica.changeState('Candidate');
   }
 
   /** [Raft] The replica can either get a message from the client or another replica. Reset the timer on each message. While in the Follower state...
@@ -75,8 +80,8 @@ class FollowerState extends BaseRaftState {
         };
 
         // Decide whether to grant vote here...
-        if (message.term < this.replica.currentTerm) {
-          // If it's in an older term, automatic no 🙅‍♀️.
+        if (message.term <= this.replica.currentTerm) {
+          // If it's in an older term, automatic no 🙅‍♀️. If it's a current term... it should be no too because a candidate should be +1 on candidacy.
           response.voteGranted = false;
         } else {
           // If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
@@ -95,11 +100,6 @@ class FollowerState extends BaseRaftState {
             this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
           }
         }
-
-        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-        console.log(`Follower ${this.replica.id} voted ${response.voteGranted} for replica ${message.src}`);
-        console.log(`Follower ${this.replica.id} is sending response: ${response.voteGranted}, ${response.type}, ${response.term}`);
-        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
         this.replica.send(response);
         break;

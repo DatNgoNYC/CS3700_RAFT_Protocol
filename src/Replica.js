@@ -9,6 +9,8 @@ const { FollowerState } = require('./States/FollowerState');
 // eslint-disable-next-line no-unused-vars
 const Types = require('./Types');
 const { getRandomMID, BROADCAST } = require('./Utilities');
+const { CandidateState } = require('./States/CandidateState');
+const { LeaderState } = require('./States/LeaderState');
 
 /**
  * The Replica object. (Also serves as context for our three states: Follower, Candidate, Leader).
@@ -70,12 +72,24 @@ class Replica {
 
   /** Change the the state of the replica to the given state and then run the replica with the state's logic
    * @method changeState
-   * @param {BaseRaftState} state - The new state of the replica. */
+   * @param {string} state - The new state of the replica. */
   changeState(state) {
-    this.state = state;
+    switch (state) {
+      case 'Follower':
+        this.state = new FollowerState(this);
+        break;
+      case 'Candidate':
+        this.state = new CandidateState(this);
+        break;
+      case 'Leader':
+        this.state = new LeaderState(this);
+        break;
+      default:
+        break;
+    }
     this.state.run();
 
-    // do something here to handle attaching and removing recursively. 
+    // do something here to handle attaching and removing recursively.
   }
 
   /** Send a message to the simulator in the required JSON format.

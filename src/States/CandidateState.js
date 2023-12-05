@@ -3,7 +3,8 @@ const BaseRaftState = require('./BaseRaftState');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
 const Types = require('../Types');
-const { LeaderState } = require('./LeaderState');
+// const { LeaderState } = require('./LeaderState');
+// const { FollowerState } = require('./FollowerState');
 require('./LeaderState');
 
 /** [Raft] Candidate state class.
@@ -25,9 +26,9 @@ class CandidateState extends BaseRaftState {
 
   /** [Raft] On conversion to candidacy, we start the election. We rerun the election if we did not receive a majority of the votes and our election timeout executes.
    * @method run */
-  run() {
+  async run() {
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`Candidate ${this.replica.id} is running for office!`);
+    console.log(`[Candidate] ... is running for election.`);
     // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     this.replica.currentTerm += 1; // Increment the currentTerm before starting operations.
@@ -57,11 +58,11 @@ class CandidateState extends BaseRaftState {
   /** [Raft] The candidate should rerun the election on timeout.
    * @method timeoutHandler   */
   timeoutHandler() {
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Candidate] ... is RErunning for election.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
     clearTimeout(this.timeoutId);
-    
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`Candidate ${this.replica.id} is RE-running for office!`);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     this.replica.votedFor = this.replica.id;
     this.voteTally = 1;
@@ -78,7 +79,7 @@ class CandidateState extends BaseRaftState {
       lastLogIndex: this.replica.log.length,
       lastLogTerm: this.replica.log[this.replica.log.length]
         ? this.replica.log[this.replica.lastApplied.length].term
-        : 0,
+        : 1,
     };
     this.replica.send(requestVoteRPC_Broadcasted); // Broadcast the VoteRequestRPC to our replica cluster.
 
@@ -99,7 +100,16 @@ class CandidateState extends BaseRaftState {
     const quorum = Math.floor(this.replica.others.length / 2) + 1;
 
     switch (message.type) {
-      case 'AppendEntriesRPC':
+      case 'AppendEntryRPC':
+        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+        console.log(`[Candidate] ... is receiving an AppendEntriesRPC`);
+        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
+        if (message.term >= this.replica.currentTerm) {
+          clearTimeout(this.timeoutId);
+          this.replica.socket.removeListener('message', this.messageHandler);
+          this.replica.changeState('Follower');
+        }
         break;
 
       case 'RequestVoteRPC':
@@ -107,14 +117,11 @@ class CandidateState extends BaseRaftState {
 
       case 'RequestVoteResponse':
         this.voteTally += message.voteGranted ? 1 : 0;
-        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-        console.log(`Candidate ${this.replica.id}, current voteTally: ${this.voteTally}. Quorum: ${quorum}.`);
-        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
         if (this.voteTally >= quorum) {
           clearTimeout(this.timeoutId);
           this.replica.socket.removeListener('message', this.messageHandler);
-          this.replica.changeState(new LeaderState(this.replica));
+          this.replica.changeState('Leader');
         }
         break;
 
