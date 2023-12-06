@@ -1,5 +1,19 @@
 #!/usr/bin/env node
 
+const { Replica } = require("./src/Replica");
 
+// Extract command line arguments
+/* [SELF STUDY] here we are using something something destructuring. Array desturcturing i think... */
+const [, , id, port, ...others] = process.argv;
 
+// Validate that id and port are provided
+if (!id || !port) {
+  console.error('Usage: ./3700kvstore <id> <port> [<otherId1> <otherId2> ...]');
+  process.exit(1);
+}
 
+// Create a new Replica instance with the parsed arguments
+const replica = new Replica(Number(port), id, others);
+
+// Run the replica
+replica.run();
