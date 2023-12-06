@@ -93,6 +93,7 @@ class Leader extends BaseRaftState {
             // [TODO] case where there is a candidate somehow... maybe from a network partition, slow network? anywho, will have to look into what to do.
             response = {};
             break;
+            
 
          case 'AppendEntryResponse':
             response = {};
