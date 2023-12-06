@@ -58,6 +58,10 @@ class Follower extends BaseRaftState {
          case 'AppendEntryRPC':
             this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
 
+            if (message.entries.length === 0) { // Don't respond to heartbeats.
+               break;
+            }
+
             /** @type {Types.AppendEntryResponse} - We send back an AppendEntryResponse response. */
             response = {
                src: this.replica.id,
