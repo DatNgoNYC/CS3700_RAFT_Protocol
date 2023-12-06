@@ -11,193 +11,123 @@ const { Follower } = require('./states/Follower');
 // disabled for JSDoc typing.
 // eslint-disable-next-line no-unused-vars
 const { createSocket, Socket } = require('dgram');
+const { Follower } = require('./States/FollowerState');
 // disabled for JSDoc typing.
 // eslint-disable-next-line no-unused-vars
-const BaseRaftState = require('./States/BaseRaftState');
-const { FollowerState } = require('./States/FollowerState');
-
-// /**
-//  * Base class for Raft states (Pseudo-abstract).
-//  * @class
-//  * @abstract
-//  */
-// class BaseRaftState {
-//   /**
-//    * Creates an instance of BaseRaftState.
-//    * @param {Types.Replica} replica - The Replica instance.
-//    */
-//   constructor(replica) {
-//     // Reference to the replica
-
-//     this.replica = replica;
-//   }
-
-//   /**
-//    * Abstract method for running the replica dependent on current state.
-//    */
-//   run() {
-//     throw new Error('Abstract method run must be overridden');
-//   }
-// }
-
-// /**
-//  * Follower state class.
-//  * @class
-//  * @extends BaseRaftState
-//  */
-// class FollowerState {
-//   /**
-//    * Creates an instance of FollowerState.
-//    * @param {Replica} replica - The Replica instance.
-//    */
-//   constructor(replica) {
-//     // Call the constructor of the base class
-//     BaseRaftState.call(this, replica);
-//   }
-
-//   /**
-//    * Implement the run method specific to the Follower state.
-//    */
-//   run() {
-//     console.log('Follower State');
-//     // Access common properties and methods from the Replica context
-//     this.replica.commonMethod();
-//   }
-// }
-
-// // Set up prototype inheritance for FollowerState
-// FollowerState.prototype = Object.create(BaseRaftState.prototype);
-
-// /**
-//  * Candidate state class.
-//  * @class
-//  * @extends BaseRaftState
-//  */
-// class CandidateState {
-//   /**
-//    * Creates an instance of CandidateState.
-//    * @param {Replica} replica - The Replica instance.
-//    */
-//   constructor(replica) {
-//     // Call the constructor of the base class
-//     BaseRaftState.call(this, replica);
-//     // Additional property specific to the Candidate state
-//     this.candidateProperty = 'Candidate-specific property';
-//   }
-
-//   /**
-//    * Implement the run method specific to the Candidate state.
-//    */
-//   run() {
-//     console.log('Candidate State');
-//     // Access common properties and methods from the Replica context
-//     this.replica.commonMethod();
-//     // Access state-specific property
-//     console.log('Candidate Property:', this.candidateProperty);
-//   }
-// }
-
-// // Set up prototype inheritance for CandidateState
-// CandidateState.prototype = Object.create(BaseRaftState.prototype);
-
-// /**
-//  * Leader state class.
-//  * @class
-//  * @extends BaseRaftState
-//  */
-// class LeaderState {
-//   /**
-//    * Creates an instance of LeaderState.
-//    * @param {Replica} replica - The Replica instance.
-//    */
-//   constructor(replica) {
-//     // Call the constructor of the base class
-//     BaseRaftState.call(this, replica);
-//     // Additional method specific to the Leader state
-//     this.leaderMethod = function () {
-//       console.log('Leader-specific method');
-//       // Leader-specific logic
-//     };
-//   }
-
-//   /**
-//    * Implement the run method specific to the Leader state.
-//    */
-//   run() {
-//     console.log('Leader State');
-//     // Access common properties and methods from the Replica context
-//     this.replica.commonMethod();
-//     // Access state-specific method
-//     this.leaderMethod();
-//   }
-// }
-
-// // Set up prototype inheritance for LeaderState
-// LeaderState.prototype = Object.create(BaseRaftState.prototype);
-
-// ------------------------------------------------------------------------------
-
-// ------------------------ State Pattern ------------------------
+const Types = require('./Types');
+const { getRandomMID, BROADCAST } = require('./Utilities');
+const { Candidate } = require('./States/CandidateState');
+const { Leader } = require('./States/LeaderState');
 
 /**
  * The Replica object. (Also serves as context for our three states: Follower, Candidate, Leader).
  * @class
  */
 class Replica {
-  /**
-   * Creates an instance of Replica.
-   * @param {number} port - The port number to send messages to.
-   * @param {string} id - The ID of the replica.
-   * @param {string[]} others - An array of IDs of other replicas.
-   */
-  constructor(port, id, others) {
-    /** @property {int} port - This replica's port number on the localhost that you should send UDP packets to in order to communicate with your replicas. */
-    this.port = port;
-    /** @property {string} id - This replica's id to identify itself in messages. */
-    this.id = id;
-    /** @property {string[]} others - The other replicas in the replica set. */
-    this.others = others;
-    /** @property {Socket} - This replica's socket it will use to send messages. */
-    this.socket = createSocket('udp4');
-    this.socket.bind(this.port, '0.0.0.0');
-    /**
-     * The current state of the Raft algorithm.
-     * @property {BaseRaftState} - This replica's current state. */
-    this.state = new FollowerState(this);
+   /**
+    * Creates an instance of Replica.
+    * @param {number} port - The port number to send messages to.
+    * @param {string} id - The ID of the replica.
+    * @param {string[]} others - An array of IDs of other replicas.
+    */
+   constructor(port, id, others) {
+      /** @property {number} port - This replica's port number on the localhost that you should send UDP packets to in order to communicate with your replicas. */
+      this.port = port;
+      /** @property {string} id - This replica's id to identify itself in messages. */
+      this.id = id;
+      /** @property {string[]} others - The other replicas in the replica cluster. */
+      this.others = others;
+      /** @property {Socket} - This replica's socket it will use to send messages. */
+      this.socket = createSocket('udp4');
+      this.socket.bind(0, '0.0.0.0');
+      this.socket.setMaxListeners(2);
+      this.socket.on('message', (buffer) => {
+         const jsonString = buffer.toString('utf-8'); // Convert buffer to string
+         /** @type { Types.Redirect | Types.AppendEntryResponse | Types.Fail | Types.AppendEntryRPC } */
+         const message = JSON.parse(jsonString); // Parse from JSON to JS object
+         /** @type { Types.OK | Types.Fail } - The response we'll send. The type of message received dicates the type of the response we send. */
 
-    // ________ Raft properties ________
-    /** @property {int} term - This replica's current term. */
-    this.term = 0;
-    /** @property {Entry[]} log - This replica's log of entries (get/puts) */
-    this.log = [];
-  }
+         // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+         console.log(
+            `[${this.state.constructor.name}] ... is receiving a '${message.type}' message.  src:${message.src}, dst:${message.dst}, leader:${message.leader}, type:${message.type}. All properties: ${Object.keys(message).join(' | ')}`
+         );
+         // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+      });
+      /** @property {BaseRaftState} - This replica's current state. */
+      this.state = new Follower(this);
 
-  /**
-   * Get the replica up and running, using the current state's logic.
-   * @method run */
-  run() {
-    this.state.run();
-  }
+      /*  🚣‍♀️ [Raft] 🚣‍♀️ */
+      /** PERSISTENT state on all servers:
+       * (Updated on stable storage before responding to RPCs) */
+      /** @property {number} term - This replica's current term. */
+      this.currentTerm = 0;
+      /** @property {string} - The candidate that received this replica's vote this current term. */
+      this.votedFor = null;
+      /** @property {Types.Entry[]} log - This replica's log of entries (puts) */
+      this.log = [];
+      /** VOLATILE state on all servers:  */
+      /** @property {number} commitIndex - index of highest log entry known to be committed (initialized to 0, increases monotonically). */
+      this.commitIndex = 0;
+      /** @property {number} lastApplied - index of highest log entry applied to state machine (initialized to 0, increases monotonically). */
+      this.lastApplied = 0;
+      /** @property {Object.<string, string>} stateMachine - The state machine representing key-value pairs. */
+      this.stateMachine = {};
+   }
 
-  /**
-   * Change the the state of the replica to the given state and then run the replica with the state's logic
-   * @method changeState
-   * @param {BaseRaftState} state - The new state of the replica. */
-  async changeState(state) {
-    this.state = state;
-    this.state.run();
-  }
+   /** Get the replica up and running, using the current state's logic.
+    * @method run */
+   run() {
+      // Send a HELLO message once at startup.
+      const hello = {
+         src: this.id,
+         dst: BROADCAST,
+         leader: 'FFFF',
+         type: 'hello',
 
-  /**
-   * Send a message.
-   * @method send
-   * @param {Message} message - The message to send. */
-  send(message) {
-    this.socket.send(message, this.port, 'localhost');
-  }
+         MID: getRandomMID(),
+      };
+      this.send(hello);
+
+      this.state.run();
+
+      // add the initial handlemessage here
+   }
+
+   /** Change the the state of the replica to the given state and then run the replica with the state's logic
+    * @method changeState
+    * @param {string} state - The new state of the replica. */
+   changeState(state) {
+      switch (state) {
+         case 'Follower':
+            this.state = new Follower(this);
+            break;
+         case 'Candidate':
+            this.state = new Candidate(this);
+            break;
+         case 'Leader':
+            this.state = new Leader(this);
+            break;
+         default:
+            break;
+      }
+      this.state.run();
+   }
+
+   /** Send a message to the simulator in the required JSON format.
+    * @method send
+    * @param {Types.Message} message - The message to send. */
+   send(message) {
+      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+      // if (message.type !== 'redirect') { // let's not log redirect messages
+      console.log(`[${this.state.constructor.name}] ... is sending a '${message.type}' message.`);
+      // }
+      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
+      const messageSerialized = JSON.stringify(message);
+      this.socket.send(messageSerialized, Number(this.port), 'localhost');
+   }
 }
 
 module.exports = {
-  Replica,
-  // BaseRaftState,
+   Replica,
 };

@@ -1,87 +1,185 @@
-const { clearTimeout } = require('timers');
 const BaseRaftState = require('./BaseRaftState');
-const { CandidateState } = require('./CandidateState');
+const { getRandomDuration } = require('../Utilities');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
-const { Replica } = require('../Replica');
+const Types = require('../Types');
 
-/**
- * Follower state class.
+/** [Raft] Follower state class.
+ *
+ * A replica in the Follower state will take the role of listening and logging and replicating under the coordination/lead of the Leader replica. Or responding to Candidates when necessary.
  * @class
  * @extends BaseRaftState
  */
-class FollowerState extends BaseRaftState {
-  /**
-   * Creates an instance of FollowerState.
-   * @param {Replica} replica - The Replica instance.
-   */
-  constructor(replica) {
-    super(replica);
-  }
+class Follower extends BaseRaftState {
+   /** Creates an instance of FollowerState.
+    * @param {Replica} replica - The Replica instance.
+    */
+   constructor(replica) {
+      super(replica);
 
-  /**
-   * Run the replica with logic defined by each state.
-   *
-   * [FOLLOWER] Set up the electionTimeout mechanism. Add the message handler for all incoming messages (will either be a 'heartbeat'/appendEntries RPC or RequestVote RPC).
-   * @method run */
-  run() {
-    const randomDuration = Math.floor(Math.random() * 150 + 150);
-    this.setupTimeout(this.timeoutHandler, randomDuration);
+      /** @property {string} - The cluster's leaderId for followers to redirect candidates. */
+      this.leader = 'FFFF';
+   }
 
-    this.replica.socket.on('message', this.messageHandler);
-  }
+   /** [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message received. The follower should appropiately respond to RPCs and redirect client requests.
+    * @method run */
+   run() {
+      console.log(`[Follower] ... is  a new Follower and ready to follow.`);
 
-  /**
-   * Set up the timeout for the state.
-   * @method setupTimeout
-   * @param {Function} callback - Callback function to be executed on timeout.
-   * @param {number} timeout - Timeout duration in milliseconds.
-   */
-  setupTimeout(callback, timeout) {
-    this.timeoutId = setTimeout(callback, timeout);
-  }
+      this.setupTimeout(this.timeoutHandler, getRandomDuration());
+      this.replica.socket.on('message', this.messageHandler);
+   }
 
-  // /**
-  //  * Clear the timeout and additional logic depending on state.
-  //  *
-  //  * [FOLLOWER] Clear the timeout when there is a heartbeat from the leader or a RequestVote RPC.
-  //  * @method clearTimeout
-  //  */
-  // clearTimeout() {
-  //   clearTimeout(this.timeoutId);
-  //   this.timeoutId = null;
-  // }
+   /** [Raft] In the Follower state you should transition the replica to the candidate state. In this state, the 'timeout' is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
+    * @method timeoutHandler */
+   timeoutHandler() {
+      console.log(`[Follower] ... is changing into a candidate.`);
+      this.changeState('Candidate');
+   }
 
-  /**
-   * The event handler, dependent on state, for when the replica has a 'timeout' event.
-   *
-   * [FOLLOWER] In the Follower state you should transition the replica to the candidate state. In this context, the 'timeout' of the follower is the election timeout. Remove the current messageHandler for this state before you transition to the new one.
-   * @method timeoutHandler
-   */
-  timeoutHandler() {
-    this.replica.socket.removeListener('message', this.messageHandler);
-    this.replica.changeState(new CandidateState(this.replica));
-  }
+   /** [Raft] The replica can either get a message from the client or another replica. Reset the timer on each message. While in the Follower state...
+    *
+    * - If the message is a RequestVoteRPC...
+    *    - If the candidate's term is less than this replica's current term, REJECT vote.
+    *    - Else, if this replica has not voted yet or the replica has already voted for the candidate, then check to see if the candidate
+    *
+    * @method messageHandler
+    * @param {Buffer} buffer - The message this replica's received. */
+   messageHandler(buffer) {
+      clearTimeout(this.timeoutId); // Reset the timeout.
 
-  /**
-   * Each state has specific message handling logic.
-   * 
-   * [FOLLOWER] Upon receiving a heartbeat/AppendEntry RPC or VoteRequest RPC it should execute the appropiate steps and reset its election timeout with a random duration from 150ms - 300ms. If there is a VoteRequest RPC, execute the appropiate steps.
-   * @method messageHandler
-   * @param {Message} */
-  messageHandler() {
-    // respond however we'd like...
-    // if appendEntry
-    //  then do what needs to be done
-    // else if VoteRequest
+      const jsonString = buffer.toString('utf-8'); /*  Convert buffer to string  */
+      /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } - The message we've received. */
+      const message = JSON.parse(jsonString); // Parse from JSON to JS object
+      /** @type { Types.Redirect | Types.RequestVoteResponse | Types.AppendEntryResponse } - The response we'll send. The type of Message received dicates the type of the response we send. */
+      let response;
 
-    clearTimeout(this.timeoutId);
-    
-    const randomDuration = Math.floor(Math.random() * 150 + 150);
-    this.setupTimeout(this.timeoutHandler, randomDuration);
-  }
+      switch (message.type) {
+         case 'AppendEntryRPC':
+            this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+
+            if (message.entries.length === 0) { // Don't respond to heartbeats.
+               break;
+            }
+
+            /** @type {Types.AppendEntryResponse} - We send back an AppendEntryResponse response. */
+            response = {
+               src: this.replica.id,
+               dst: message.src,
+               leader: this.leader,
+               type: 'AppendEntryResponse',
+
+               term: this.replica.currentTerm,
+               success: false,
+            };
+
+            // [Raft] Logic for whether to grant vote or not.
+            if (message.term < this.replica.currentTerm) {
+               // If the leader's AppendEntryRPC is older...
+               response.success = false;
+            } else if (this.replica.log.length === 0) {
+               // We will have to compare the leader's logs to ours to see whether to grant the vote or not.
+               // But in this ifelse block, we'll skip that if it's the base case where this replica has no entries.
+               response.success = true;
+               this.leader = message.leader;
+            } else if (message.prevLogIndex >= this.replica.log.length) {
+               // The leader's prevLogIndex should be at least as long as this replica's log.
+               if (this.replica.log[this.replica.log.length].term === message.prevLogTerm) {
+                  // Grant the vote if the Leader's log is as new as this replica's.
+                  response.success = true;
+                  this.leader = message.leader;
+               }
+            }
+
+            // [TODO] - we have to do this when we want to replicate.
+            // [Raft]
+            // 3. If an existing entry conflicts with a new one (same index
+            //    but different terms), delete the existing entry and all that
+            //    follow it (§5.3)
+            // 4. Append any new entries not already in the log
+            // 5. If leaderCommit > commitIndex, set commitIndex =
+            //    min(leaderCommit, index of last new entry)
+
+            this.replica.send(response);
+
+            break;
+
+         case 'RequestVoteRPC':
+            this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+
+            /** @type {Types.RequestVoteResponse} - We send back a RequestVoteResponse response. */
+            response = {
+               src: this.replica.id,
+               dst: message.src,
+               leader: this.leader,
+               type: 'RequestVoteResponse',
+
+               term: this.replica.currentTerm,
+               voteGranted: false,
+            };
+
+            // [Raft] Decide whether to grant vote here...
+            if (message.term <= this.replica.currentTerm) {
+               // If it's in an older term, automatic no 🙅‍♀️. If it's a current term... it should be no too because a candidate should be +1 on candidacy.
+               response.voteGranted = false;
+            } else {
+               // If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
+               if (this.replica.votedFor === message.candidateID) {
+                  response.voteGranted = true;
+               } else if (this.replica.votedFor === null && this.replica.log.length === 0) { // Base case
+                  response.voteGranted = true; // Grant vote!.
+                  this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
+               } else if (
+                  // If the logs are NOT empty ...
+                  this.replica.votedFor === null && // This follower should not have voted yet this currentTerm.
+                  message.lastLogIndex >= this.replica.log.length && // The candidate's log should be AT LEAST as long as this follower's.
+                  message.lastLogTerm >= this.replica.log[this.replica.log.length].term // The candidate last log entry's term should be AT LEAST as recent as the follower's.
+               ) {
+                  response.voteGranted = true; // Grant vote!.
+                  this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
+               }
+            }
+
+            this.replica.send(response);
+            break;
+
+         case 'hello':
+            this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+            response = {};
+            break;
+
+         case 'put':
+            /** @type {Types.Redirect} */
+            response = {
+               src: this.replica.id,
+               dst: message.src,
+               leader: this.leader,
+               type: 'redirect',
+
+               MID: message.MID,
+            };
+            this.replica.send(response);
+            break;
+
+         case 'get':
+            /** @type {Types.Redirect} */
+            response = {
+               src: this.replica.id,
+               dst: message.src,
+               leader: this.leader,
+               type: 'redirect',
+
+               MID: message.MID,
+            };
+            this.replica.send(response);
+            break;
+
+         default:
+            console.error(`[Follower] ... received an unrecognized message type.`);
+      }
+   }
 }
 
 module.exports = {
-  FollowerState,
+   Follower,
 };
