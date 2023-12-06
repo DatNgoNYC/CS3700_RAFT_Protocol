@@ -1,7 +1,7 @@
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
 const Types = require('../Types');
-const { BROADCAST } = require('../Utilities');
+const { BROADCAST, HEARTBEAT_INTERVAL } = require('../Utilities');
 const BaseRaftState = require('./BaseRaftState');
 
 /** [Raft] Leader state class.
@@ -42,7 +42,7 @@ class Leader extends BaseRaftState {
       };
 
       this.replica.send(initialHeartbeat);
-      this.setupTimeout(this.timeoutHandler, 200); // Set up the timeout for the next heartheat.
+      this.setupTimeout(this.timeoutHandler, HEARTBEAT_INTERVAL); // Set up the timeout for the next heartheat.
       this.replica.socket.on('message', this.messageHandler); // Set up the message handler.
    }
 
@@ -67,7 +67,7 @@ class Leader extends BaseRaftState {
       };
       this.replica.send(heartbeat);
 
-      this.setupTimeout(this.timeoutHandler, 75);
+      this.setupTimeout(this.timeoutHandler, HEARTBEAT_INTERVAL);
    }
 
    /** [Raft] Upon receiving a message the Leader will...

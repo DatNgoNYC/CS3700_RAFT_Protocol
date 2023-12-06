@@ -1,23 +1,27 @@
+/** @constant BROADCAST - The destintion required to broadcast a message. */
+const BROADCAST = 'FFFF';
+
+/** @constant BROADCAST - The destintion required to broadcast a message. */
+const HEARTBEAT_INTERVAL = 150;
+
 /**
- * 
+ *
  * @returns a thirteen character long unique base-36 string id.
  */
 function getRandomMID() {
-  return Math.random().toString(36).substring(2, 15);
+   return Math.random().toString(36).substring(2, 15);
 }
 
 /**
- * @returns a random duration for the election cycle between 150 and 300.
+ * @returns a random duration for the election cycle.
  */
 function getRandomDuration() {
-  return Math.floor(Math.random() * 150 + 150);
+   return Math.floor(HEARTBEAT_INTERVAL * 2 + Math.random() * HEARTBEAT_INTERVAL * 0.5);
 }
 
-/** @constant BROADCAST - The destintion required to broadcast a message. */
-const BROADCAST = 'FFFF'
-
 module.exports = {
-  getRandomMID,
-  getRandomDuration,
-  BROADCAST
+   BROADCAST,
+   HEARTBEAT_INTERVAL,
+   getRandomMID,
+   getRandomDuration,
 };
