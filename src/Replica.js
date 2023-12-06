@@ -1,9 +1,6 @@
 // disabled for JSDoc typing.
 // eslint-disable-next-line no-unused-vars
 const { createSocket, Socket } = require('dgram');
-// disabled for JSDoc typing.
-// eslint-disable-next-line no-unused-vars
-const BaseRaftState = require('./States/BaseRaftState');
 const { Follower } = require('./States/FollowerState');
 // disabled for JSDoc typing.
 // eslint-disable-next-line no-unused-vars
@@ -42,7 +39,7 @@ class Replica {
 
          // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
          console.log(
-            `[${this.state.constructor.name}] ... is receiving a '${message.type}' message.`
+            `[${this.state.constructor.name}] ... is receiving a '${message.type}' message.  src:${message.src}, dst:${message.dst}, leader:${message.leader}, type:${message.type}. All properties: ${Object.keys(message).join(' | ')}`
          );
          // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
       });
@@ -76,6 +73,7 @@ class Replica {
          dst: BROADCAST,
          leader: 'FFFF',
          type: 'hello',
+
          MID: getRandomMID(),
       };
       this.send(hello);
@@ -103,24 +101,20 @@ class Replica {
             break;
       }
       this.state.run();
-
-      // do something here to handle attaching and removing recursively.
    }
 
    /** Send a message to the simulator in the required JSON format.
     * @method send
     * @param {Types.Message} message - The message to send. */
    send(message) {
+      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+      // if (message.type !== 'redirect') { // let's not log redirect messages
+      console.log(`[${this.state.constructor.name}] ... is sending a '${message.type}' message.`);
+      // }
+      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
       const messageSerialized = JSON.stringify(message);
       this.socket.send(messageSerialized, Number(this.port), 'localhost');
-
-      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-      if (message.type !== 'redirect') {
-         console.log(
-            `[${this.state.constructor.name}] ... is sending a '${message.type}' message.`
-         );
-      }
-      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
    }
 }
 

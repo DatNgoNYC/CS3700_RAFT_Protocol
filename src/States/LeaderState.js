@@ -12,111 +12,154 @@ const BaseRaftState = require('./BaseRaftState');
  * @extends BaseRaftState
  */
 class Leader extends BaseRaftState {
-  /**
-   * Creates an instance of FollowerState.
-   * @param {Replica} replica - The Replica instance.
-   */
-  constructor(replica) {
-    super(replica);
-  }
+   /**
+    * Creates an instance of FollowerState.
+    * @param {Replica} replica - The Replica instance.
+    */
+   constructor(replica) {
+      super(replica);
+   }
 
-  /** [Raft] Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server. Set up the timeout to send heartbeats to prevent election timeouts.
-   * @method run */
-  run() {
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Leader] ... is now Leader of the cluster.`);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+   /** [Raft] Upon election: send initial empty AppendEntries RPCs (heartbeat) to each server. Set up the timeout to send heartbeats to prevent election timeouts.
+    * @method run */
+   run() {
+      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+      console.log(`[Leader] ... is now Leader of the cluster.`);
+      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
-    /** @type {Types.AppendEntryRPC} */
-    const initialHeartbeat = {
-      src: this.replica.id,
-      dst: BROADCAST,
-      leader: this.replica.id,
-      type: 'AppendEntryRPC',
+      /** @type {Types.AppendEntryRPC} */
+      const initialHeartbeat = {
+         src: this.replica.id,
+         dst: BROADCAST,
+         leader: this.replica.id,
+         type: 'AppendEntryRPC',
 
-      term: this.replica.currentTerm,
-      leaderId: this.replica.id,
-      prevLogIndex: this.replica.log.length,
-      entries: [],
-      leaderCommit: this.replica.commitIndex,
-    };
+         term: this.replica.currentTerm,
+         leaderId: this.replica.id,
+         prevLogIndex: this.replica.log.length,
+         entries: [],
+         leaderCommit: this.replica.commitIndex,
+      };
 
-    this.replica.send(initialHeartbeat);
-    this.setupTimeout(this.timeoutHandler, 75); // Set up the timeout for the next heartheat.
-    this.replica.socket.on('message', this.messageHandler); // Set up the message handler.
-  }
+      this.replica.send(initialHeartbeat);
+      this.setupTimeout(this.timeoutHandler, 200); // Set up the timeout for the next heartheat.
+      this.replica.socket.on('message', this.messageHandler); // Set up the message handler.
+   }
 
-  /** [Raft] The leader should send out heartbeats to prevent election timeouts.
-   * @method timeoutHandler
-   */
-  timeoutHandler() {
-    /** @type {Types.AppendEntryRPC} - The heartbeat we will send. */
-    const heartbeat = {
-      src: this.replica.id,
-      dst: BROADCAST,
-      leader: this.replica.id,
-      type: 'AppendEntryRPC',
+   /** [Raft] The leader should send out heartbeats to prevent election timeouts.
+    * @method timeoutHandler
+    */
+   timeoutHandler() {
+      console.log(`[Leader] ... heartbeatTimeout.`);
 
-      term: this.replica.currentTerm,
-      leaderId: this.replica.id,
-      prevLogIndex: this.replica.log.length,
-      entries: [],
-      leaderCommit: this.replica.commitIndex,
-    };
-    this.replica.send(heartbeat);
+      /** @type {Types.AppendEntryRPC} - The heartbeat we will send. */
+      const heartbeat = {
+         src: this.replica.id,
+         dst: BROADCAST,
+         leader: this.replica.id,
+         type: 'AppendEntryRPC',
 
-    this.setupTimeout(this.timeoutHandler, 75);
-  }
+         term: this.replica.currentTerm,
+         leaderId: this.replica.id,
+         prevLogIndex: this.replica.log.length,
+         entries: [],
+         leaderCommit: this.replica.commitIndex,
+      };
+      this.replica.send(heartbeat);
 
-  /** [Raft] Upon receiving a message the Leader will...
-   *
-   * @method messageHandler
-   * @param {Buffer} buffer - The message this replica's received. */
-  messageHandler(buffer) {
-    const jsonString = buffer.toString('utf-8'); // Convert buffer to string
-    /** @type { Types.Redirect | Types.AppendEntryResponse | Types.Fail | Types.AppendEntryRPC } */
-    const message = JSON.parse(jsonString); // Parse from JSON to JS object
-    /** @type { Types.OK | Types.Fail } - The response we'll send. The type of message received dicates the type of the response we send. */
-    let response;
-    /** @type {number} */
-    // const quorum = Math.floor(this.replica.others.length / 2) + 1;
+      this.setupTimeout(this.timeoutHandler, 75);
+   }
 
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Follower] ... is receiving a '${message.type}' message.`);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+   /** [Raft] Upon receiving a message the Leader will...
+    *
+    * @method messageHandler
+    * @param {Buffer} buffer - The message this replica's received. */
+   messageHandler(buffer) {
+      const jsonString = buffer.toString('utf-8'); // Convert buffer to string
+      /** @type { Types.Redirect | Types.AppendEntryResponse | Types.Fail | Types.AppendEntryRPC | Types.Put | Types.Get } */
+      const message = JSON.parse(jsonString); // Parse from JSON to JS object
+      /** @type { Types.OK | Types.Fail } - The response we'll send. The type of message received dicates the type of the response we send. */
+      let response;
+      /** @type {number} */
+      // const quorum = Math.floor(this.replica.others.length / 2) + 1;
 
-    switch (message.type) {
-      case 'AppendEntriesRPC':
-        // case where there is another leader somehow... maybe from a network partition, slow network? anywho, will have to look into how to decide which log from the leaders are valid, decide leader of new cluster, and more stuff im sure.
-        break;
+      switch (message.type) {
+         case 'AppendEntriesRPC':
+            // [TODO] case where there is another leader somehow... maybe from a network partition, slow network? anywho, will have to look into how to decide which log from the leaders are valid, decide leader of new cluster, and more stuff im sure.
+            response = {};
+            break;
 
-      case 'RequestVoteRPC':
-        // case where there is a candidate somehow... maybe from a network partition, slow network? anywho, will have to look into what to do.
-        break;
+         case 'RequestVoteRPC':
+            // [TODO] case where there is a candidate somehow... maybe from a network partition, slow network? anywho, will have to look into what to do.
+            response = {};
+            break;
 
-      case 'AppendEntryResponse':
-        break;
+         case 'AppendEntryResponse':
+            response = {};
+            break;
 
-      case 'get':
-        /** @type {Types.Fail} */
-        response = {
-          src: this.replica.id,
-          dst: message.src,
-          leader: this.replica.id,
-          type: 'fail',
-          MID: message.MID,
-        };
-        this.replica.send(response);
-        break;
+         case 'put':
+            // [TODO] make sure the do the quorum thing before PUTting into statemachine
 
-      case 'put':
-        break;
-    }
-  }
+            this.replica.stateMachine[message.key] = message.value; // PUT into out state machine
+
+            console.log(
+               `[Leader | messageHandler | Put ] ... There are ${
+                  Object.keys(this.replica.stateMachine).length
+               } entries.`
+            );
+            console.log(
+               `[Leader | messageHandler | Put ] ... We Received put message src:${
+                  message.src
+               }, dst:${message.dst}, leader:${message.leader}, type:${message.type}, MID:${
+                  message.MID
+               }. All properties: ${Object.keys(message).join(' | ')}`
+            );
+
+            /** @type {Types.OK} - We've successfully applied it to our stateMachine.*/
+            response = {
+               src: this.replica.id,
+               dst: message.dst,
+               leader: this.replica.id,
+               type: 'ok',
+
+               MID: message.MID,
+            };
+
+            this.replica.send(response);
+
+            break;
+
+         case 'get':
+            /** @type {Types.OK} - We've successfully applied it to our stateMachine.*/
+            response = {
+               src: this.replica.id,
+               dst: message.dst,
+               leader: this.replica.id,
+               type: 'ok',
+
+               MID: message.MID,
+               value: this.replica.stateMachine[message.key] || '',
+            };
+
+            this.replica.send(response);
+            break;
+
+         case 'hello':
+            break;
+
+         case 'ok':
+            break;
+
+         default:
+            console.error(`[Leader] ... received an unrecognized message type.`);
+            break;
+      }
+   }
 }
 
 module.exports = {
-  Leader,
+   Leader,
 };
 
 //

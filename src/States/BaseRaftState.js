@@ -1,6 +1,6 @@
 // Need for jsdoc
 // eslint-disable-next-line no-unused-vars
-const { Replica } = require('../Replica');
+// const { Replica } = require('../Replica');
 
 /**
  * Base class for Raft states (Pseudo-abstract).

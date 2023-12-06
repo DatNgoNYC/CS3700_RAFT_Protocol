@@ -1,8 +1,4 @@
 const BaseRaftState = require('./BaseRaftState');
-// const { CandidateState } = require('./CandidateState');
-// Disabled rule for JSDoc typing purposes.
-// eslint-disable-next-line no-unused-vars
-const { Replica } = require('../Replica');
 const { getRandomDuration } = require('../Utilities');
 // Disabled rule for JSDoc typing purposes.
 // eslint-disable-next-line no-unused-vars
@@ -28,20 +24,16 @@ class Follower extends BaseRaftState {
    /** [Raft] The Follower should have an 'election timout' that gets called every 150-300ms (the specific duration is randomized every cycle). The election timeout resets on every message received. The follower should appropiately respond to RPCs and redirect client requests.
     * @method run */
    run() {
-      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-      console.log(`[Follower] ... is is a new Follower and ready to follow.`);
-      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+      console.log(`[Follower] ... is  a new Follower and ready to follow.`);
 
       this.setupTimeout(this.timeoutHandler, getRandomDuration());
-
       this.replica.socket.on('message', this.messageHandler);
    }
 
    /** [Raft] In the Follower state you should transition the replica to the candidate state. In this state, the 'timeout' is the election timeout. The replica will now transition to the Candidate state and will proceed in accordance with Raft.
     * @method timeoutHandler */
    timeoutHandler() {
-      // clearTimeout(this.timeoutId);
-      // this.replica.socket.removeListener('message', this.messageHandler); // Remove this state's listener so that it doesn't fire in the new state.
+      console.log(`[Follower] ... is changing into a candidate.`);
       this.changeState('Candidate');
    }
 
@@ -59,15 +51,13 @@ class Follower extends BaseRaftState {
       const jsonString = buffer.toString('utf-8'); /*  Convert buffer to string  */
       /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } - The message we've received. */
       const message = JSON.parse(jsonString); // Parse from JSON to JS object
-      /** @type { Types.Redirect | Types.RequestVoteResponse } - The response we'll send. The type of Message received dicates the type of the response we send. */
+      /** @type { Types.Redirect | Types.RequestVoteResponse | Types.AppendEntryResponse } - The response we'll send. The type of Message received dicates the type of the response we send. */
       let response;
-
-      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-      console.log(`[Follower] ... is receiving a '${message.type}' message.`);
-      // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
       switch (message.type) {
          case 'AppendEntryRPC':
+            this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+
             /** @type {Types.AppendEntryResponse} - We send back an AppendEntryResponse response. */
             response = {
                src: this.replica.id,
@@ -76,22 +66,24 @@ class Follower extends BaseRaftState {
                type: 'AppendEntryResponse',
 
                term: this.replica.currentTerm,
-               voteGranted: false,
+               success: false,
             };
 
             // [Raft] Logic for whether to grant vote or not.
             if (message.term < this.replica.currentTerm) {
                // If the leader's AppendEntryRPC is older...
-               response.voteGranted = false;
+               response.success = false;
             } else if (this.replica.log.length === 0) {
                // We will have to compare the leader's logs to ours to see whether to grant the vote or not.
                // But in this ifelse block, we'll skip that if it's the base case where this replica has no entries.
-               response.voteGranted = true;
+               response.success = true;
+               this.leader = message.leader;
             } else if (message.prevLogIndex >= this.replica.log.length) {
                // The leader's prevLogIndex should be at least as long as this replica's log.
-               if (this.replica.log[message.prevLogIndex].term === message.prevLogTerm) {
+               if (this.replica.log[this.replica.log.length].term === message.prevLogTerm) {
                   // Grant the vote if the Leader's log is as new as this replica's.
-                  response.voteGranted = true;
+                  response.success = true;
+                  this.leader = message.leader;
                }
             }
 
@@ -104,9 +96,13 @@ class Follower extends BaseRaftState {
             // 5. If leaderCommit > commitIndex, set commitIndex =
             //    min(leaderCommit, index of last new entry)
 
+            this.replica.send(response);
+
             break;
 
          case 'RequestVoteRPC':
+            this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+
             /** @type {Types.RequestVoteResponse} - We send back a RequestVoteResponse response. */
             response = {
                src: this.replica.id,
@@ -126,7 +122,7 @@ class Follower extends BaseRaftState {
                // If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
                if (this.replica.votedFor === message.candidateID) {
                   response.voteGranted = true;
-               } else if (this.replica.votedFor === null && this.replica.log.length === 0) {
+               } else if (this.replica.votedFor === null && this.replica.log.length === 0) { // Base case
                   response.voteGranted = true; // Grant vote!.
                   this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
                } else if (
@@ -143,7 +139,12 @@ class Follower extends BaseRaftState {
             this.replica.send(response);
             break;
 
-         default:
+         case 'hello':
+            this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+            response = {};
+            break;
+
+         case 'put':
             /** @type {Types.Redirect} */
             response = {
                src: this.replica.id,
@@ -155,9 +156,23 @@ class Follower extends BaseRaftState {
             };
             this.replica.send(response);
             break;
-      }
 
-      this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
+         case 'get':
+            /** @type {Types.Redirect} */
+            response = {
+               src: this.replica.id,
+               dst: message.src,
+               leader: this.leader,
+               type: 'redirect',
+
+               MID: message.MID,
+            };
+            this.replica.send(response);
+            break;
+
+         default:
+            console.error(`[Follower] ... received an unrecognized message type.`);
+      }
    }
 }
 
