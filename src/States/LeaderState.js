@@ -103,23 +103,10 @@ class Leader extends BaseRaftState {
 
             this.replica.stateMachine[message.key] = message.value; // PUT into out state machine
 
-            console.log(
-               `[Leader | messageHandler | Put ] ... There are ${
-                  Object.keys(this.replica.stateMachine).length
-               } entries.`
-            );
-            console.log(
-               `[Leader | messageHandler | Put ] ... We Received put message src:${
-                  message.src
-               }, dst:${message.dst}, leader:${message.leader}, type:${message.type}, MID:${
-                  message.MID
-               }. All properties: ${Object.keys(message).join(' | ')}`
-            );
-
             /** @type {Types.OK} - We've successfully applied it to our stateMachine.*/
             response = {
                src: this.replica.id,
-               dst: message.dst,
+               dst: message.src,
                leader: this.replica.id,
                type: 'ok',
 
@@ -134,7 +121,7 @@ class Leader extends BaseRaftState {
             /** @type {Types.OK} - We've successfully applied it to our stateMachine.*/
             response = {
                src: this.replica.id,
-               dst: message.dst,
+               dst: message.src,
                leader: this.replica.id,
                type: 'ok',
 
