@@ -63,9 +63,11 @@ The stuff below is related to our specific implementation of Raft. */
  * @typedef {Message & { type: 'AppendEntryRPC', term: number, leaderId: string, prevLogIndex: number, prevLogTerm: number, entries: Entry[], leaderCommit: number }} AppendEntryRPC
  */
 
-/** [TODO]
+/** 
  * AppendEntryResponse message type from a follower replica after receiving an AppendEntryRPC.
- * @typedef {Message & { type: 'AppendEntryResponse', entry: string, term: number }} AppendEntryResponse
+ *  - {number} term - currentTerm, for leader to update itself,
+ *  - {boolean} success - true if follower contained entry matching prevLogIndex and prevLogTerm.
+ * @typedef {Message & { type: 'AppendEntryResponse', term: number, success: boolean }} AppendEntryResponse
  */
 
 /**

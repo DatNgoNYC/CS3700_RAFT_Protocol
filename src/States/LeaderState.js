@@ -11,7 +11,7 @@ const BaseRaftState = require('./BaseRaftState');
  * @class
  * @extends BaseRaftState
  */
-class LeaderState extends BaseRaftState {
+class Leader extends BaseRaftState {
   /**
    * Creates an instance of FollowerState.
    * @param {Replica} replica - The Replica instance.
@@ -41,10 +41,6 @@ class LeaderState extends BaseRaftState {
       leaderCommit: this.replica.commitIndex,
     };
 
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Leader] ... first heartbeat.`);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-
     this.replica.send(initialHeartbeat);
     this.setupTimeout(this.timeoutHandler, 75); // Set up the timeout for the next heartheat.
     this.replica.socket.on('message', this.messageHandler); // Set up the message handler.
@@ -54,7 +50,6 @@ class LeaderState extends BaseRaftState {
    * @method timeoutHandler
    */
   timeoutHandler() {
-
     /** @type {Types.AppendEntryRPC} - The heartbeat we will send. */
     const heartbeat = {
       src: this.replica.id,
@@ -69,10 +64,6 @@ class LeaderState extends BaseRaftState {
       leaderCommit: this.replica.commitIndex,
     };
     this.replica.send(heartbeat);
-
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-    console.log(`[Leader] ... is broadcasting a heartbeat.`);
-    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     this.setupTimeout(this.timeoutHandler, 75);
   }
@@ -89,6 +80,10 @@ class LeaderState extends BaseRaftState {
     let response;
     /** @type {number} */
     // const quorum = Math.floor(this.replica.others.length / 2) + 1;
+
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Follower] ... is receiving a '${message.type}' message.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
 
     switch (message.type) {
       case 'AppendEntriesRPC':
@@ -121,7 +116,7 @@ class LeaderState extends BaseRaftState {
 }
 
 module.exports = {
-  LeaderState,
+  Leader,
 };
 
 //

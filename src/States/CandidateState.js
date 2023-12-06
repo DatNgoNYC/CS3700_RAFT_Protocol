@@ -13,7 +13,7 @@ require('./LeaderState');
  * @class
  * @extends BaseRaftState
  */
-class CandidateState extends BaseRaftState {
+class Candidate extends BaseRaftState {
   /** Creates an instance of CandidateState.
    * @param {Replica} replica - The Replica instance.
    */
@@ -89,23 +89,23 @@ class CandidateState extends BaseRaftState {
    * @method messageHandler
    * @param {Buffer} buffer - The message this replica's received. */
   messageHandler(buffer) {
+    
     const jsonString = buffer.toString('utf-8'); // Convert buffer to string
     /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } */
     const message = JSON.parse(jsonString); // Parse from JSON to JS object
     /** @type { Types.Redirect | Types.RequestVoteReponse } - The response we'll send. The type of message received dicates the type of the response we send. */
     let response;
+
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+    console.log(`[Follower] ... is receiving a '${message.type}' message.`);
+    // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
+
     /** @type {number} - Number of replicas needed to reach consensus. */
     const quorum = Math.floor(this.replica.others.length / 2) + 1;
 
     switch (message.type) {
       case 'AppendEntryRPC':
-        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-        console.log(`[Candidate] ... is receiving an AppendEntriesRPC`);
-        // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
-
         if (message.term >= this.replica.currentTerm) {
-          // clearTimeout(this.timeoutId);
-          // this.replica.socket.removeListener('message', this.messageHandler);
           this.changeState('Follower');
         }
         break;
@@ -138,5 +138,5 @@ class CandidateState extends BaseRaftState {
 }
 
 module.exports = {
-  CandidateState,
+  Candidate,
 };
