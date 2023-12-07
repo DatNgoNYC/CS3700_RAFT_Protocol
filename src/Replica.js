@@ -52,7 +52,11 @@ class Replica {
 
          // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
          console.log(
-            `[${this.state.constructor.name}] ... is receiving a '${message.type}' message.  src:${message.src}, dst:${message.dst}, leader:${message.leader}, type:${message.type}. All properties: ${Object.keys(message).join(' | ')}`
+            `[${this.state.constructor.name}] ... is receiving a '${message.type}' message.  src:${
+               message.src
+            }, dst:${message.dst}, leader:${message.leader}, type:${
+               message.type
+            }. All properties: ${Object.keys(message).join(' | ')}`
          );
          // LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING LOGGING
       });
