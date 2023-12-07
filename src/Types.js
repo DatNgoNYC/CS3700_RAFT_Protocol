@@ -2,6 +2,28 @@
 General types for our project. */
 
 /**
+ * The Replica class represents a replica in our key-value data store.
+ *
+ * We are using the state design pattern and so we designate the Replica to act as the "context" as well and allows our state implementations to execute based on the current "context"/"state" of the replica.
+ * @typedef {Object} Replica
+ * @property {number} port - This replica's port number on the localhost that you should send UDP packets to in order to communicate with your replicas.
+ * @property {string} id - This replica's id to identify itself in messages.
+ * @property {string[]} others - The other replicas in the replica cluster.
+ * @property {Socket} socket - This replica's socket it will use to send messages.
+ * @property {BaseRaftState} state - This replica's current state.
+ * @property {number} currentTerm - This replica's current term.
+ * @property {string} votedFor - The candidate that received this replica's vote this current term.
+ * @property {Types.Entry[]} log - This replica's log of entries (puts).
+ * @property {number} commitIndex - index of the highest log entry known to be committed (initialized to 0, increases monotonically).
+ * @property {number} lastApplied - index of the highest log entry applied to the state machine (initialized to 0, increases monotonically).
+ * @property {Object.<string, string>} stateMachine - The state machine representing key-value pairs.
+ * @property {function} run - Get the replica up and running, using the current state's logic.
+ * @property {function} changeState - Change the state of the replica to the given state and then run the replica with the state's logic.
+ * @property {function} send - Send a message to the simulator in the required JSON format.
+ * @property {function} [constructor] - Creates an instance of Replica.
+ */
+
+/**
  * General message properties all messages must have for the simulator to be able to process it and send it to the "client" or another "replica" in the replica cluster. :) slay slay slay!
  * @typedef {Object} Message
  * @property {string} src - Source of the message.
@@ -42,9 +64,7 @@ General types for our project. */
  * @typedef {Message & { type: 'redirect', MID: string } } Redirect
  */
 
-
-
-/*                                    🚣‍♀️🚣‍♀️🚣‍♀️🚣‍♀️ [Raft] 🚣‍♀️🚣‍♀️🚣‍♀️🚣‍♀️                             
+/*                                    🚣‍♀️🚣‍♀️🚣‍♀️🚣‍♀️ [Raft] 
 The stuff below is related to our specific implementation of Raft. */
 
 /**
@@ -63,7 +83,7 @@ The stuff below is related to our specific implementation of Raft. */
  * @typedef {Message & { type: 'AppendEntryRPC', term: number, leaderId: string, prevLogIndex: number, prevLogTerm: number, entries: Entry[], leaderCommit: number }} AppendEntryRPC
  */
 
-/** 
+/**
  * AppendEntryResponse message type from a follower replica after receiving an AppendEntryRPC.
  *  - {number} term - currentTerm, for leader to update itself,
  *  - {boolean} success - true if follower contained entry matching prevLogIndex and prevLogTerm.
