@@ -58,7 +58,8 @@ class Follower extends BaseRaftState {
          case 'AppendEntryRPC':
             this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
 
-            if (message.entries.length === 0) { // Don't respond to heartbeats.
+            if (message.entries.length === 0) {
+               // Don't respond to heartbeats.
                break;
             }
 
@@ -126,7 +127,8 @@ class Follower extends BaseRaftState {
                // If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
                if (this.replica.votedFor === message.candidateID) {
                   response.voteGranted = true;
-               } else if (this.replica.votedFor === null && this.replica.log.length === 0) { // Base case
+               } else if (this.replica.votedFor === null && this.replica.log.length === 0) {
+                  // Base case
                   response.voteGranted = true; // Grant vote!.
                   this.replica.votedFor = message.candidateID; // We vote for YOU 🫵 message.candidateID
                } else if (
