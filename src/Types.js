@@ -1,6 +1,3 @@
-/*                                         [General] 
-General types for our project. */
-
 /**
  * The Replica class represents a replica in our key-value data store.
  *
@@ -21,6 +18,11 @@ General types for our project. */
  * @property {function} changeState - Change the state of the replica to the given state and then run the replica with the state's logic.
  * @property {function} send - Send a message to the simulator in the required JSON format.
  * @property {function} [constructor] - Creates an instance of Replica.
+ */
+
+/**
+ * An entry contains a command for state machine, and the term when entry was received by leader.
+ * @typedef {Put & { term: number }} Entry
  */
 
 /**
@@ -62,14 +64,6 @@ General types for our project. */
 /**
  * If the client sends any message (get() or put()) to a replica that is not the leader, it should respond with a redirect:
  * @typedef {Message & { type: 'redirect', MID: string } } Redirect
- */
-
-/*                                    🚣‍♀️🚣‍♀️🚣‍♀️🚣‍♀️ [Raft] 
-The stuff below is related to our specific implementation of Raft. */
-
-/**
- * An entry contains a command for state machine, and the term when entry was received by leader.
- * @typedef {Put & { term: number }} Entry
  */
 
 /**
