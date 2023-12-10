@@ -49,14 +49,14 @@ class Leader extends BaseRaftState {
         return matchIndex >= N;
       }).length;
       console.log(
-        `for commitIndex value N: ${N}, the number of matching nodes is ${matchingNodes}.`
+        `... for commitIndex value N: ${N}, the number of matching nodes is ${matchingNodes}.`
       );
       // Check if a majority of matchIndex values are greater than or equal to N, and log[N].term == currentTerm
       if (
         matchingNodes > this.replica.others.length / 2 &&
         this.replica.log[N].term === this.replica.currentTerm
       ) {
-        console.log(`succesfully updating commitIndex to N.`);
+        console.log(`... succesfully updating commitIndex to N.`);
         // set commitIndex to N (§5.3, §5.4).
         this.replica.commitIndex = N;
 
@@ -67,6 +67,8 @@ class Leader extends BaseRaftState {
           /** @type {Types.Entry} */
           const entry = this.replica.log[this.replica.lastApplied];
           this.replica.stateMachine[entry.key] = entry.value;
+
+          console.log(`Sending ok for log entry ${this.replica.lastApplied}`);
 
           /** @type {Types.OK} - We've successfully applied it to our stateMachine.*/
           let ok = {
@@ -83,7 +85,7 @@ class Leader extends BaseRaftState {
     }
 
     this.replica.others.forEach((id) => {
-      this.lastIndex[id] = this.replica.log.length - 1; // lastIndex we send is our recentmost log index we've sent. We do - 1 bc the log is 1 indexed
+      // this.lastIndex[id] = this.replica.log.length - 1; // lastIndex we send is our recentmost log index we've sent. We do - 1 bc the log is 1 indexed
 
       /** @type {Types.AppendEntryRPC} */
       const appendEntryRPC = {
@@ -96,7 +98,7 @@ class Leader extends BaseRaftState {
         leaderId: this.replica.id,
         prevLogIndex: this.nextIndex[id] - 1,
         prevLogTerm: this.replica.log[this.nextIndex[id] - 1].term,
-        entries: this.replica.log.slice(this.nextIndex[id], this.replica.log.length + 1), // we do +1 because slice's end arg is exclusive
+        entries: this.replica.log.slice(this.nextIndex[id], this.nextIndex[id] + 1), // we do +1 because slice's end arg is exclusive
         leaderCommit: this.replica.commitIndex,
       };
       this.replica.send(appendEntryRPC);
@@ -141,6 +143,19 @@ class Leader extends BaseRaftState {
           console.log(`[Leader ${this.replica.id}] ... is changing into a Follower.`);
           this.changeState('Follower');
         }
+
+        /** @type {Types.RequestVoteResponse} - We send back a RequestVoteResponse response of NO. */
+        response = {
+          src: this.replica.id,
+          dst: message.src,
+          leader: 'FFFF',
+          type: 'RequestVoteResponse',
+
+          term: this.replica.currentTerm,
+          voteGranted: false,
+        };
+
+        this.replica.send(response);
         break;
 
       case 'AppendEntryResponse': {
@@ -148,7 +163,7 @@ class Leader extends BaseRaftState {
         // [Raft] If AppendEntryResponse received from newer follower: convert to follower
         if (message.term > this.replica.currentTerm) {
           this.replica.currentTerm = message.term;
-          this.replica.votedFor = null;
+          this.replica.votedFor = message.src;
           console.log(
             `[Leader ${this.replica.id}] ... is updating its term upon a higher-term AppendEntryResponse. and updating its votedFor.`
           );
@@ -158,9 +173,11 @@ class Leader extends BaseRaftState {
 
         // [Raft] If successful: update nextIndex and matchIndex for follower (§5.3).
         if (message.success) {
-          this.nextIndex[message.src] = this.lastIndex[message.src] + 1;
+          // this.nextIndex[message.src] = this.lastIndex[message.src] + 1;
+          this.nextIndex[message.src] += 1;
 
-          this.matchIndex[message.src] = this.lastIndex[message.src]; // we know we sent up to this index b/c the message was successful.
+          // this.matchIndex[message.src] = this.lastIndex[message.src]; // we know we sent up to this index b/c the message was successful.
+          this.matchIndex[message.src] = this.nextIndex[message.src] - 1;
         }
 
         // [Raft] If AppendEntries fails because of log inconsistency: decrement nextIndex and retry (§5.3).

@@ -108,6 +108,17 @@ class Candidate extends BaseRaftState {
       }
 
       case 'RequestVoteResponse': {
+        // [Raft] If RPC request or response contains term T > currentTerm, set currentTerm = T, change to follower state.
+        if (message.term > this.replica.currentTerm) {
+          this.replica.currentTerm = message.term;
+          this.replica.votedFor = message.src;
+          console.log(
+            `[Candidate ${this.replica.id}] ... is updating its term to ${this.replica.currentTerm} due to a higher-term RequestVoteRPC. and updating its votedFor to ${this.replica.votedFor}.`
+          );
+          console.log(`[Candidate ${this.replica.id}] ... is changing into a Follower.`);
+          this.changeState('Follower');
+        }
+
         /** @type {number} - Number of replicas needed to reach consensus. */
         const quorum = Math.floor(this.replica.others.length / 2) + 1;
         this.voteTally += message.voteGranted ? 1 : 0;

@@ -76,9 +76,6 @@ class Follower extends BaseRaftState {
 
         // [Raft] 1. Reply false if term < currentTerm (§5.1).
         if (message.term < this.replica.currentTerm) {
-          console.log(
-            `message.term < this.replica.currentTerm : ${message.term < this.replica.currentTerm}`
-          );
           response.success = false;
           this.replica.send(response);
           break;
@@ -105,20 +102,7 @@ class Follower extends BaseRaftState {
             this.replica.log.splice(logIndex);
 
             // [Raft] 4. Append any new entries not already in the log
-            this.replica.log.push(message.entries.slice(i));
-            console.log(
-              `follower ${this.replica.id}'s log has ${this.replica.log.length} entries.`
-            );
-            let logContent = this.replica.log.forEach((entry) =>
-              Object.entries(entry)
-                .map(([key, value]) => {
-                  return key === 'value'
-                    ? 'value: PLACEHOLDER'
-                    : `${key}: ${JSON.stringify(value)}`;
-                })
-                .join(' | ')
-            );
-            console.log(logContent.join(', '));
+            this.replica.log.push(...message.entries.slice(i));
             break;
           }
         }
@@ -170,11 +154,6 @@ class Follower extends BaseRaftState {
         }
 
         // [Raft] 2. If votedFor is null or candidateId, and candidate’s log is at least as up-to-date as receiver’s log, grant vote (§5.2, §5.4)
-        console.log(
-          `this.replica.votedFor ${this.replica.votedFor} message.candidateID ${
-            message.candidateID
-          }: ${this.replica.votedFor === null || this.replica.votedFor === message.candidateID},`
-        );
         if (this.replica.votedFor === null || this.replica.votedFor === message.candidateID) {
           const lastIndex = this.replica.log.length - 1;
 

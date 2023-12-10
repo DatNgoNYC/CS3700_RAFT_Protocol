@@ -2,7 +2,7 @@
 const BROADCAST = 'FFFF';
 
 /** @constant BROADCAST - The destintion required to broadcast a message. */
-const HEARTBEAT_INTERVAL = 130;
+const HEARTBEAT_INTERVAL = 100;
 
 /**
  *
