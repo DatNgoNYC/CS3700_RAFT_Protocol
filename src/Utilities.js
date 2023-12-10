@@ -16,7 +16,7 @@ function getRandomMID() {
  * @returns a random duration for the election cycle.
  */
 function getRandomDuration() {
-   return Math.floor(HEARTBEAT_INTERVAL * 2 + Math.random() * HEARTBEAT_INTERVAL * 1);
+   return Math.floor(HEARTBEAT_INTERVAL * 2 + Math.random() * HEARTBEAT_INTERVAL * 2);
 }
 
 module.exports = {
