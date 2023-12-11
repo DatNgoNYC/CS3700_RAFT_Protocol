@@ -3,7 +3,6 @@
 const { Replica } = require('./src/Replica');
 
 // Extract command line arguments
-/* [SELF STUDY] here we are using something something destructuring. Array desturcturing i think... */
 const [, , port, id, ...others] = process.argv;
 
 // Validate that id and port are provided
