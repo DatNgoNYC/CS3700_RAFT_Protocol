@@ -36,16 +36,6 @@ class Follower extends BaseRaftState {
    * @method messageHandler
    * @param {Buffer} buffer - The message this replica's received. */
   messageHandler(buffer) {
-    // [Raft] If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3).
-    while (this.replica.commitIndex > this.replica.lastApplied) {
-      this.replica.lastApplied += 1;
-      /** @type {Types.Entry} */
-      const entry = this.replica.log[this.replica.lastApplied];
-      this.replica.stateMachine[entry.key] = entry.value;
-    }
-
-    clearTimeout(this.timeoutId); // Reset the timeout.
-
     const jsonString = buffer.toString('utf-8'); /*  Convert buffer to string  */
     /** @type { Types.Redirect | Types.AppendEntryResponse | Types.RequestVoteRPC | Types.AppendEntryRPC } - The message we've received. */
     const message = JSON.parse(jsonString); // Parse from JSON to JS object
@@ -54,13 +44,16 @@ class Follower extends BaseRaftState {
 
     switch (message.type) {
       case 'AppendEntryRPC':
-        this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
-
-        // [Raft] If RPC request or response contains term T > currentTerm, set currentTerm = T
+        // [Raft] If RPC request or response contains term T > currentTerm, set currentTerm = T ... Why does this make sense? because when a follower gets a heartbeat from a leader that is... in a new term??? this can happen in network partitions (or perhaps unreliable networks where heartbeats get lost) where this follower was not in the quorum group. tough stuff, this.replic.id. When this happens, you can go ahead and update your term. So what about the old leader? Well, the new leader can only be elected if it gets a majority of votes which happens when it's up to date with a majority of replicas. and up to date means prevLogIndex and prevLogTerm so we're comparing only the most RECENT entries during election. and therefore a new leader can only be elected when its has all the entries of at least a quorum of replicas. Meaning, the new leader has all the entries that we need to maintain consistency.
+        // What happens to the additional logs if there was a network partition/crash such that we have the old logs of the old leader that were NOT commited? Well that means we're gonna have to delete it and send the fail response. If we don't want to duplicate fail messages for the same put request, we can make it that the leader that switches to follower can send the failure responses. for now thoough, let's just make it that all followers can send back fails upon splicing for time's sake.
         if (message.term > this.replica.currentTerm) {
           this.replica.currentTerm = message.term;
           this.replica.votedFor = message.src;
-          `[Follower ${this.replica.id}] ... is updating its term to ${this.replica.currentTerm} due to a higher-term AppendEntryRPC. and updating its votedFor to ${this.replica.votedFor}.`;
+          console.log(
+            `[Follower ${this.replica.id}] ... is updating its term to ${this.replica.currentTerm} due to a higher-term AppendEntryRPC. and updating its votedFor to ${this.replica.votedFor}.`
+          );
+          this.setupTimeout(this.timeoutHandler, getRandomDuration());
+          break;
         }
 
         /** @type {Types.AppendEntryResponse} */
@@ -74,20 +67,32 @@ class Follower extends BaseRaftState {
           success: false,
         };
 
-        // [Raft] 1. Reply false if term < currentTerm (§5.1).
+        // [Raft] This is the CONSISTENCY check to if the leader is valid.
+
+        // [Raft] 1. Reply false if term < currentTerm (§5.1). For the cases where it was from a partitioned leader and the OLD leader is trying to send a heartbeat
         if (message.term < this.replica.currentTerm) {
           response.success = false;
           this.replica.send(response);
+          // we do not reset the timer because old RPCs or responses are never accepted. The leader that sent this message will see that we are higher term and update themselves. In this case if we do not get an AppendEntryRPC again from another leader, possibly the correct one (we check in the next step)... we'll just execute the election timer if we don't get one from a new leader bc maybe we are the valid leader !!
           break;
         }
 
-        // [Raft] 2. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3) ... unless
-        if (this.changeState)
-          if (this.replica.log[message.prevLogIndex].term !== message.prevLogTerm) {
-            response.success = false;
-            this.replica.send(response);
-            break;
-          }
+        // [Raft] 2. Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3) ...
+        // If we don't have that log we'll send it back a failure so the leader can send back the index prior and maybe we will have an entry starting there.
+        if (this.replica.log[message.prevLogIndex] === undefined) {
+          response.success = false;
+          this.replica.send(response);
+          this.setupTimeout(this.timeoutHandler, getRandomDuration());
+          break;
+        } 
+        
+        // If we finally find an index where we both have entries, but if the terms are different then go back once more
+        if (this.replica.log[message.prevLogIndex].term !== message.prevLogTerm) {
+          response.success = false;
+          this.replica.send(response);
+          this.setupTimeout(this.timeoutHandler, getRandomDuration()); // Remember it's okay to reset the timer here because  our safety checks during leader election mean the leader, a NEW leader as we just verifie
+          break;
+        }
 
         // [Raft] We confirm the message the be successful from a proper Leader.
         response.success = true;
@@ -100,6 +105,7 @@ class Follower extends BaseRaftState {
           if (!existingEntry || existingEntry.term !== newEntry.term) {
             // If it is not existing (undefined) then we do not have an entry at that index.
             this.replica.log.splice(logIndex);
+            // [TODO] We have to
 
             // [Raft] 4. Append any new entries not already in the log
             this.replica.log.push(...message.entries.slice(i));
@@ -122,12 +128,19 @@ class Follower extends BaseRaftState {
 
         // update leader property to redirect clients.
         this.leader = message.leader;
+        this.setupTimeout(this.timeoutHandler, getRandomDuration());
+
+        // [Raft] If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine (§5.3). Make sure our stateMachine is updated before responding!
+        while (this.replica.commitIndex > this.replica.lastApplied) {
+          this.replica.lastApplied += 1;
+          /** @type {Types.Entry} */
+          const entry = this.replica.log[this.replica.lastApplied];
+          this.replica.stateMachine[entry.key] = entry.value;
+        }
 
         break;
 
       case 'RequestVoteRPC':
-        this.setupTimeout(this.timeoutHandler, getRandomDuration()); // set up the timeout again.
-
         // [Raft] If RPC request or response contains term T > currentTerm, set currentTerm = T
         if (message.term > this.replica.currentTerm) {
           this.replica.currentTerm = message.term;
@@ -157,7 +170,7 @@ class Follower extends BaseRaftState {
         if (this.replica.votedFor === null || this.replica.votedFor === message.candidateID) {
           const lastIndex = this.replica.log.length - 1;
 
-          // [Raft] If the logs have last entries with different terms, then the log with the later term is more up-to-date.
+          // [Raft] If we have a more recent term in our recentmost entry then we deny the vote. We have a more recent log.
           if (message.lastLogTerm < this.replica.log[lastIndex].term) {
             response.voteGranted = false;
             this.replica.send(response);
@@ -176,6 +189,7 @@ class Follower extends BaseRaftState {
           }
           response.voteGranted = true;
           this.replica.send(response);
+          this.setupTimeout(this.timeoutHandler, getRandomDuration());
         }
 
         break;

@@ -76,6 +76,20 @@ class Candidate extends BaseRaftState {
           );
           console.log(`[Candidate ${this.replica.id}] ... is changing into a Follower.`);
           this.changeState('Follower');
+        } else {
+          // [Raft] We send back a false response so the old leader can update itself.
+          /** @type {Types.AppendEntryResponse} */
+          response = {
+            src: this.replica.id,
+            dst: message.src,
+            leader: 'FFFF',
+            type: 'AppendEntryResponse',
+
+            term: this.replica.currentTerm,
+            success: false,
+          };
+
+          this.replica.send(response);
         }
 
         break;

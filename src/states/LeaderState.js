@@ -48,13 +48,15 @@ class Leader extends BaseRaftState {
         console.log(`For follower ${followerId}, its matchIndex is ${matchIndex}`);
         return matchIndex >= N;
       }).length;
+
       console.log(
-        `... for commitIndex value N: ${N}, the number of matching nodes is ${matchingNodes}.`
+        `... for entry index value N: ${N}, the number of matching nodes is ${matchingNodes}.`
       );
+      
       // Check if a majority of matchIndex values are greater than or equal to N, and log[N].term == currentTerm
       if (
-        matchingNodes > this.replica.others.length / 2 &&
-        this.replica.log[N].term === this.replica.currentTerm
+        matchingNodes >= this.replica.others.length / 2 && true
+        // this.replica.log[N].term === this.replica.currentTerm // b/c we only add from our terms
       ) {
         console.log(`... succesfully updating commitIndex to N.`);
         // set commitIndex to N (§5.3, §5.4).
@@ -81,11 +83,13 @@ class Leader extends BaseRaftState {
           };
           this.replica.send(ok);
         }
-      }
+      } else break;
     }
 
     this.replica.others.forEach((id) => {
       // this.lastIndex[id] = this.replica.log.length - 1; // lastIndex we send is our recentmost log index we've sent. We do - 1 bc the log is 1 indexed
+
+      const prevLogIndex = Math.max(this.nextIndex[id] - 1, 0);
 
       /** @type {Types.AppendEntryRPC} */
       const appendEntryRPC = {
@@ -96,9 +100,9 @@ class Leader extends BaseRaftState {
 
         term: this.replica.currentTerm,
         leaderId: this.replica.id,
-        prevLogIndex: this.nextIndex[id] - 1,
-        prevLogTerm: this.replica.log[this.nextIndex[id] - 1].term,
-        entries: this.replica.log.slice(this.nextIndex[id], this.nextIndex[id] + 1), // we do +1 because slice's end arg is exclusive
+        prevLogIndex: prevLogIndex,
+        prevLogTerm: this.replica.log[prevLogIndex].term,
+        entries: this.replica.log.slice(prevLogIndex + 1, prevLogIndex + 2), // we do +1 because slice's end arg is exclusive
         leaderCommit: this.replica.commitIndex,
       };
       this.replica.send(appendEntryRPC);
@@ -141,7 +145,8 @@ class Leader extends BaseRaftState {
             `[Leader ${this.replica.id}] ... is updating its term to ${this.replica.currentTerm} due to a higher-term RequestVoteRPC. and updating its votedFor to ${this.replica.votedFor}.`
           );
           console.log(`[Leader ${this.replica.id}] ... is changing into a Follower.`);
-          this.changeState('Follower');
+          this.changeState('Follower'); 
+          break;
         }
 
         /** @type {Types.RequestVoteResponse} - We send back a RequestVoteResponse response of NO. */

@@ -2,7 +2,7 @@
 const BROADCAST = 'FFFF';
 
 /** @constant BROADCAST - The destintion required to broadcast a message. */
-const HEARTBEAT_INTERVAL = 100;
+const HEARTBEAT_INTERVAL = 60;
 
 /**
  *
@@ -16,7 +16,7 @@ function getRandomMID() {
  * @returns a random duration for the election cycle.
  */
 function getRandomDuration() {
-   return Math.floor(HEARTBEAT_INTERVAL * 2 + Math.random() * HEARTBEAT_INTERVAL * 2);
+   return Math.floor(HEARTBEAT_INTERVAL * 3 + Math.random() * HEARTBEAT_INTERVAL );
 }
 
 module.exports = {
